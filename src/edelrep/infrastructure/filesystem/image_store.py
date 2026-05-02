@@ -98,7 +98,7 @@ class FilesystemImageRepository:
 
     def _reconstruct(self, path: Path, repair_id: ULID) -> Image:
         match = _IMAGE_FILE_RE.match(path.name)
-        if match is None:
+        if match is None:  # pragma: no cover - callers pre-filter on _IMAGE_FILE_RE
             raise ValueError(f"unexpected image filename: {path.name!r}")
         image_id = ULID.from_str(match.group(2))
         thumb = path.parent / "_thumbs" / path.name

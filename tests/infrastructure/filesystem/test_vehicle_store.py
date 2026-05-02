@@ -91,6 +91,24 @@ def test_list_all_skips_directory_without_sidecar(storage_root: Path, sample_veh
     assert listed == [sample_vehicle]
 
 
+def test_list_all_returns_empty_when_root_missing(tmp_path: Path) -> None:
+    repo = FilesystemVehicleRepository(tmp_path / "nonexistent")
+    assert list(repo.list_all()) == []
+
+
+def test_list_all_skips_dir_with_invalid_vehicle_id_name(storage_root: Path, sample_vehicle: Vehicle) -> None:
+    repo = FilesystemVehicleRepository(storage_root)
+    repo.save(sample_vehicle)
+    bad = storage_root / "with space"
+    bad.mkdir()
+    (bad / "_vehicle.json").write_text(
+        '{"schema_version": 1, "registration_number": "with space", "vin": null, "description": null, "created_at": "2026-04-15T10:00:00+00:00"}',
+        encoding="utf-8",
+    )
+    listed = list(repo.list_all())
+    assert listed == [sample_vehicle]
+
+
 def test_satisfies_protocol(storage_root: Path) -> None:
     repo: VehicleRepository = FilesystemVehicleRepository(storage_root)
     assert isinstance(repo, VehicleRepository)

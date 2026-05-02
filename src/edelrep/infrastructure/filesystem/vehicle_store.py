@@ -66,7 +66,7 @@ class FilesystemVehicleRepository:
     @staticmethod
     def _deserialise(vehicle_id: VehicleId, data: dict[str, object]) -> Vehicle:
         created_at_raw = data["created_at"]
-        if not isinstance(created_at_raw, str):
+        if not isinstance(created_at_raw, str):  # pragma: no cover - defensive; read_sidecar produces strings
             raise TypeError(f"created_at must be ISO string, got {type(created_at_raw).__name__}")
         return Vehicle(
             id=vehicle_id,

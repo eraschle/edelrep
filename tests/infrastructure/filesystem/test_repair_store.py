@@ -109,6 +109,42 @@ def test_list_for_vehicle_returns_empty_for_unknown(storage_root: Path) -> None:
     assert list(repo.list_for_vehicle(VehicleId("99999"))) == []
 
 
+def test_list_for_vehicle_returns_empty_when_root_missing(tmp_path: Path) -> None:
+    repo = FilesystemRepairRepository(tmp_path / "nonexistent")
+    assert list(repo.list_for_vehicle(VehicleId("12345"))) == []
+
+
+def test_get_returns_empty_when_root_missing(tmp_path: Path) -> None:
+    repo = FilesystemRepairRepository(tmp_path / "nonexistent")
+    with pytest.raises(RepairNotFound):
+        repo.get(ULID())
+
+
+def test_iter_sidecars_skips_invalid_vehicle_dir(
+    storage_root: Path, sample_vehicle: Vehicle, sample_repair: Repair
+) -> None:
+    _seed_vehicle(storage_root, sample_vehicle)
+    repo = FilesystemRepairRepository(storage_root)
+    repo.save(sample_repair)
+    # Create a malformed vehicle-level entry that should be skipped during scans.
+    (storage_root / "with space").mkdir()
+    fetched = repo.get(sample_repair.id)
+    assert fetched == sample_repair
+
+
+def test_list_for_vehicle_skips_non_repair_dirs(
+    storage_root: Path, sample_vehicle: Vehicle, sample_repair: Repair
+) -> None:
+    _seed_vehicle(storage_root, sample_vehicle)
+    repo = FilesystemRepairRepository(storage_root)
+    repo.save(sample_repair)
+    # Add a stray file (non-dir) and a non-matching subdir under the vehicle folder.
+    (storage_root / "12345" / "stray.txt").write_text("noise", encoding="utf-8")
+    (storage_root / "12345" / "not-a-repair").mkdir()
+    repairs = list(repo.list_for_vehicle(sample_vehicle.id))
+    assert len(repairs) == 1
+
+
 def test_satisfies_protocol(storage_root: Path) -> None:
     repo: RepairRepository = FilesystemRepairRepository(storage_root)
     assert isinstance(repo, RepairRepository)

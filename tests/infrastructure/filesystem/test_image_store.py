@@ -88,7 +88,7 @@ def test_save_falls_back_to_bin_extension_for_extensionless_filename(
     repo.save(img_no_ext, raw_bytes=sample_image_bytes)
     repair_path = storage_root / "12345" / "2026-04-15__bremsbelage-vorne"
     files = list(repair_path.iterdir())
-    image_files = [p for p in files if p.is_file()]
+    image_files = [p for p in files if p.is_file() and not p.name.startswith("_")]
     assert len(image_files) == 1
     assert image_files[0].suffix == ".bin"
 
@@ -154,6 +154,33 @@ def test_get_raises_when_missing(storage_root: Path) -> None:
     repo = FilesystemImageRepository(storage_root)
     with pytest.raises(ImageNotFound):
         repo.get(ULID())
+
+
+def test_list_for_repair_returns_empty_when_root_missing(tmp_path: Path) -> None:
+    repo = FilesystemImageRepository(tmp_path / "nonexistent")
+    assert list(repo.list_for_repair(ULID())) == []
+
+
+def test_get_raises_when_root_missing(tmp_path: Path) -> None:
+    repo = FilesystemImageRepository(tmp_path / "nonexistent")
+    with pytest.raises(ImageNotFound):
+        repo.get(ULID())
+
+
+def test_save_skips_when_repair_dir_has_no_sidecar(
+    storage_root: Path,
+    sample_vehicle: Vehicle,
+    sample_repair: Repair,
+    sample_image_bytes: bytes,
+) -> None:
+    FilesystemVehicleRepository(storage_root).save(sample_vehicle)
+    # Create a repair-shaped dir but without _repair.json — _find_repair_dir must skip it.
+    bogus = storage_root / "12345" / "2026-04-15__no-sidecar"
+    bogus.mkdir()
+    repo = FilesystemImageRepository(storage_root)
+    img = make_image(sample_repair.id)
+    with pytest.raises(RepairNotFound):
+        repo.save(img, raw_bytes=sample_image_bytes)
 
 
 def test_satisfies_protocol(storage_root: Path) -> None:
