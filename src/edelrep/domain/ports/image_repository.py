@@ -14,8 +14,16 @@ class ImageRepository(Protocol):
         """Return the image or raise :class:`ImageNotFound`."""
         ...
 
-    def save(self, image: Image) -> None:
-        """Insert a new image record."""
+    def save(
+        self,
+        image: Image,
+        *,
+        raw_bytes: bytes,
+        thumbnail_bytes: bytes | None = None,
+    ) -> None:
+        """Persist the image record together with the raw image bytes
+        (and optional thumbnail). The implementation is responsible for
+        writing both byte streams atomically."""
         ...
 
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:

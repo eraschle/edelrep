@@ -60,8 +60,15 @@ class _FakeImageRepo:
     def get(self, image_id: ULID) -> Image:
         return self._store[image_id]
 
-    def save(self, image: Image) -> None:
+    def save(
+        self,
+        image: Image,
+        *,
+        raw_bytes: bytes,
+        thumbnail_bytes: bytes | None = None,
+    ) -> None:
         self._store[image.id] = image
+        # raw_bytes/thumbnail_bytes intentionally ignored in this fake
 
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         return [i for i in self._store.values() if i.repair_id == repair_id]
