@@ -31,7 +31,10 @@ exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
+    "^\\s*\\.\\.\\.\\s*$",
+    "@(abc\\.)?abstractmethod",
 ]
+fail_under = 95
 
 [build-system]
 requires = ["hatchling"]
