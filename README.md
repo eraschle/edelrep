@@ -30,6 +30,9 @@ uv run pyright
 
 ## Ausführen
 
+Ein CLI-Einstiegspunkt folgt in Phase 9. Vorerst:
+
 ```bash
-uv run python main.py
+uv run pytest
+uv run pyright
 ```

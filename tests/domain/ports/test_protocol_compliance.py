@@ -1,0 +1,149 @@
+from collections.abc import Iterable, Sequence
+from typing import BinaryIO
+
+from ulid import ULID
+
+from edelrep.domain.entities import Image, Repair, Vehicle
+from edelrep.domain.ports import (
+    EmailInbox,
+    EmailMessage,
+    ImageRepository,
+    RepairRepository,
+    SearchIndex,
+    StorageBackend,
+    VehicleRepository,
+)
+from edelrep.domain.value_objects import VehicleId
+
+
+class _FakeVehicleRepo:
+    def __init__(self) -> None:
+        self._store: dict[VehicleId, Vehicle] = {}
+
+    def get(self, vehicle_id: VehicleId) -> Vehicle:
+        return self._store[vehicle_id]
+
+    def save(self, vehicle: Vehicle) -> None:
+        self._store[vehicle.id] = vehicle
+
+    def update(self, vehicle: Vehicle) -> None:
+        self._store[vehicle.id] = vehicle
+
+    def list_all(self) -> Iterable[Vehicle]:
+        return list(self._store.values())
+
+    def exists(self, vehicle_id: VehicleId) -> bool:
+        return vehicle_id in self._store
+
+
+class _FakeRepairRepo:
+    def __init__(self) -> None:
+        self._store: dict[ULID, Repair] = {}
+
+    def get(self, repair_id: ULID) -> Repair:
+        return self._store[repair_id]
+
+    def save(self, repair: Repair) -> None:
+        self._store[repair.id] = repair
+
+    def update(self, repair: Repair) -> None:
+        self._store[repair.id] = repair
+
+    def list_for_vehicle(self, vehicle_id: VehicleId) -> Iterable[Repair]:
+        return [r for r in self._store.values() if r.vehicle_id == vehicle_id]
+
+
+class _FakeImageRepo:
+    def __init__(self) -> None:
+        self._store: dict[ULID, Image] = {}
+
+    def get(self, image_id: ULID) -> Image:
+        return self._store[image_id]
+
+    def save(self, image: Image) -> None:
+        self._store[image.id] = image
+
+    def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
+        return [i for i in self._store.values() if i.repair_id == repair_id]
+
+
+class _FakeStorage:
+    def __init__(self) -> None:
+        self._files: dict[str, bytes] = {}
+
+    def read_bytes(self, key: str) -> bytes:
+        return self._files[key]
+
+    def write_bytes(self, key: str, data: bytes) -> None:
+        self._files[key] = data
+
+    def open_read(self, key: str) -> BinaryIO:  # pragma: no cover - structural only
+        raise NotImplementedError
+
+    def delete(self, key: str) -> None:
+        self._files.pop(key, None)
+
+    def exists(self, key: str) -> bool:
+        return key in self._files
+
+    def list_prefix(self, prefix: str) -> Iterable[str]:
+        return [k for k in self._files if k.startswith(prefix)]
+
+
+class _FakeSearchIndex:
+    def __init__(self) -> None:
+        self._rows: dict[VehicleId, Vehicle] = {}
+
+    def search_vehicles(self, query: str, limit: int = 20) -> Iterable[Vehicle]:
+        return list(self._rows.values())[:limit]
+
+    def upsert_vehicle(self, vehicle: Vehicle) -> None:
+        self._rows[vehicle.id] = vehicle
+
+    def remove_vehicle(self, vehicle_id: VehicleId) -> None:
+        self._rows.pop(vehicle_id, None)
+
+    def clear(self) -> None:
+        self._rows.clear()
+
+
+class _FakeInbox:
+    def __init__(self, messages: Sequence[EmailMessage] = ()) -> None:
+        self._messages = list(messages)
+        self.processed: list[str] = []
+
+    def fetch_unread(self, limit: int = 50) -> Iterable[EmailMessage]:
+        return self._messages[:limit]
+
+    def mark_processed(self, message_id: str) -> None:
+        self.processed.append(message_id)
+
+
+def test_fake_vehicle_repo_satisfies_protocol() -> None:
+    repo: VehicleRepository = _FakeVehicleRepo()
+    assert isinstance(repo, VehicleRepository)
+
+
+def test_fake_repair_repo_satisfies_protocol() -> None:
+    repo: RepairRepository = _FakeRepairRepo()
+    assert isinstance(repo, RepairRepository)
+
+
+def test_fake_image_repo_satisfies_protocol() -> None:
+    repo: ImageRepository = _FakeImageRepo()
+    assert isinstance(repo, ImageRepository)
+
+
+def test_fake_storage_satisfies_protocol() -> None:
+    storage: StorageBackend = _FakeStorage()
+    assert isinstance(storage, StorageBackend)
+
+
+def test_fake_search_index_satisfies_protocol() -> None:
+    idx: SearchIndex = _FakeSearchIndex()
+    assert isinstance(idx, SearchIndex)
+
+
+def test_fake_inbox_satisfies_protocol() -> None:
+    inbox: EmailInbox = _FakeInbox()
+    assert isinstance(inbox, EmailInbox)
