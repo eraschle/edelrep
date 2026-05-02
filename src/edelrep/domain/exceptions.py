@@ -1,3 +1,6 @@
+from ulid import ULID
+
+
 class DomainError(Exception):
     """Base class for all domain-level errors."""
 
@@ -29,14 +32,14 @@ class DuplicateVehicle(DomainError):
 class RepairNotFound(DomainError):
     """Raised when a repair lookup misses."""
 
-    def __init__(self, repair_id: str) -> None:
-        super().__init__(f"Repair not found: {repair_id!r}")
+    def __init__(self, repair_id: ULID) -> None:
+        super().__init__(f"Repair not found: {repair_id!s}")
         self.repair_id = repair_id
 
 
 class ImageNotFound(DomainError):
     """Raised when an image lookup misses."""
 
-    def __init__(self, image_id: str) -> None:
-        super().__init__(f"Image not found: {image_id!r}")
+    def __init__(self, image_id: ULID) -> None:
+        super().__init__(f"Image not found: {image_id!s}")
         self.image_id = image_id

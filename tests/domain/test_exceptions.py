@@ -1,4 +1,5 @@
 import pytest
+from ulid import ULID
 
 from edelrep.domain.exceptions import (
     DomainError,
@@ -25,13 +26,17 @@ def test_vehicle_not_found_carries_id() -> None:
 
 
 def test_repair_not_found_carries_id() -> None:
-    err = RepairNotFound("01J9TGZP6X2K0V3W7Y8Z4QABCD")
-    assert err.repair_id == "01J9TGZP6X2K0V3W7Y8Z4QABCD"
+    rid = ULID()
+    err = RepairNotFound(rid)
+    assert err.repair_id is rid
+    assert str(rid) in str(err)
 
 
 def test_image_not_found_carries_id() -> None:
-    err = ImageNotFound("01J9TGZP6X2K0V3W7Y8Z4QIMAGE")
-    assert err.image_id == "01J9TGZP6X2K0V3W7Y8Z4QIMAGE"
+    iid = ULID()
+    err = ImageNotFound(iid)
+    assert err.image_id is iid
+    assert str(iid) in str(err)
 
 
 def test_duplicate_vehicle_carries_id() -> None:
