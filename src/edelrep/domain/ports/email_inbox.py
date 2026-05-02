@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
+from edelrep.domain._datetime_guards import require_aware as _require_aware
+
 
 @dataclass(frozen=True, slots=True)
 class EmailAttachment:
@@ -19,6 +21,9 @@ class EmailMessage:
     received_at: datetime
     body_text: str
     attachments: Sequence[EmailAttachment]
+
+    def __post_init__(self) -> None:
+        _require_aware(self.received_at, "received_at")
 
 
 @runtime_checkable

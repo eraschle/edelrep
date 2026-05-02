@@ -4,12 +4,8 @@ from enum import StrEnum
 
 from ulid import ULID
 
+from edelrep.domain._datetime_guards import require_aware as _require_aware
 from edelrep.domain.value_objects import VehicleId
-
-
-def _require_aware(value: datetime, field: str) -> None:
-    if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
-        raise ValueError(f"{field} must be timezone-aware")
 
 
 class ImageSource(StrEnum):
