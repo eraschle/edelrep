@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, date, datetime
+from enum import Enum
 
 import pytest
 from ulid import ULID
@@ -64,3 +65,11 @@ def test_parse_date_round_trip() -> None:
 def test_parse_ulid_round_trip() -> None:
     uid = ULID()
     assert parse_ulid(str(uid)) == uid
+
+
+def test_encoder_serialises_non_str_enum() -> None:
+    class Colour(Enum):
+        RED = 1
+
+    out = json.dumps({"c": Colour.RED}, cls=DomainJSONEncoder)
+    assert '"c": 1' in out
