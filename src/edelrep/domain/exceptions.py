@@ -43,3 +43,22 @@ class ImageNotFound(DomainError):
     def __init__(self, image_id: ULID) -> None:
         super().__init__(f"Image not found: {image_id!s}")
         self.image_id = image_id
+
+
+class SidecarSchemaError(DomainError):
+    """Raised when a sidecar file has an unsupported schema_version."""
+
+    def __init__(self, path: str, expected: int, actual: int | None) -> None:
+        super().__init__(f"Sidecar {path!r}: expected schema_version={expected}, got {actual!r}")
+        self.path = path
+        self.expected = expected
+        self.actual = actual
+
+
+class DuplicateRepair(DomainError):
+    """Raised when creating a repair whose folder already exists."""
+
+    def __init__(self, vehicle_id: str, folder_name: str) -> None:
+        super().__init__(f"Repair folder already exists for vehicle {vehicle_id!r}: {folder_name!r}")
+        self.vehicle_id = vehicle_id
+        self.folder_name = folder_name
