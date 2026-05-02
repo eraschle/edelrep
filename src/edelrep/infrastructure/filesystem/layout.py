@@ -12,6 +12,8 @@ _SLUG_FALLBACK = "repair"
 _SLUG_NORMALISE_RE = re.compile(r"[^a-z0-9]+")
 _SLUG_TRIM_RE = re.compile(r"^-+|-+$")
 
+REPAIR_DIR_NAME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}__[a-z0-9-]+$")
+
 
 def vehicle_dir(root: Path, vehicle_id: VehicleId) -> Path:
     return root / vehicle_id.registration_number

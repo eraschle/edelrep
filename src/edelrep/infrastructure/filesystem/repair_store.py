@@ -1,4 +1,3 @@
-import re
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -13,13 +12,12 @@ from edelrep.infrastructure.filesystem.json_codec import (
     parse_ulid,
 )
 from edelrep.infrastructure.filesystem.layout import (
+    REPAIR_DIR_NAME_RE,
     repair_dir_name,
     repair_sidecar_path,
     vehicle_dir,
 )
 from edelrep.infrastructure.filesystem.sidecar import read_sidecar, write_sidecar
-
-_REPAIR_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}__[a-z0-9-]+$")
 
 
 class FilesystemRepairRepository:
@@ -60,7 +58,7 @@ class FilesystemRepairRepository:
             return
         repairs: list[Repair] = []
         for entry in veh_dir.iterdir():
-            if not entry.is_dir() or not _REPAIR_DIR_RE.match(entry.name):
+            if not entry.is_dir() or not REPAIR_DIR_NAME_RE.match(entry.name):
                 continue
             sidecar = entry / "_repair.json"
             if not sidecar.is_file():
@@ -81,7 +79,7 @@ class FilesystemRepairRepository:
             except Exception:
                 continue
             for rdir in vdir.iterdir():
-                if not rdir.is_dir() or not _REPAIR_DIR_RE.match(rdir.name):
+                if not rdir.is_dir() or not REPAIR_DIR_NAME_RE.match(rdir.name):
                     continue
                 sidecar = rdir / "_repair.json"
                 if sidecar.is_file():

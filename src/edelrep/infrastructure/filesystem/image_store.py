@@ -9,8 +9,7 @@ from ulid import ULID
 from edelrep.domain.entities import Image, ImageSource
 from edelrep.domain.exceptions import ImageNotFound, RepairNotFound
 from edelrep.infrastructure.filesystem.atomic_write import write_bytes_atomic
-from edelrep.infrastructure.filesystem.layout import image_filename, thumbnail_path
-from edelrep.infrastructure.filesystem.repair_store import _REPAIR_DIR_RE  # type: ignore[reportPrivateUsage]
+from edelrep.infrastructure.filesystem.layout import REPAIR_DIR_NAME_RE, image_filename, thumbnail_path
 from edelrep.infrastructure.filesystem.sidecar import read_sidecar
 
 _IMAGE_FILE_RE = re.compile(r"^(\d{4})_([0-9A-HJKMNP-TV-Z]{26})\.([a-zA-Z0-9]+)$")
@@ -45,9 +44,7 @@ class FilesystemImageRepository:
         repair_dir = self._find_repair_dir(image.repair_id)
         if repair_dir is None:
             raise RepairNotFound(image.repair_id)
-        existing = sum(
-            1 for p in repair_dir.iterdir() if p.is_file() and _IMAGE_FILE_RE.match(p.name)
-        )
+        existing = sum(1 for p in repair_dir.iterdir() if p.is_file() and _IMAGE_FILE_RE.match(p.name))
         seq = existing + 1
         extension = (image.filename.rsplit(".", 1)[-1] or "bin").lower()
         name = image_filename(seq=seq, image_id=image.id, extension=extension)
@@ -59,9 +56,7 @@ class FilesystemImageRepository:
         repair_dir = self._find_repair_dir(repair_id)
         if repair_dir is None:
             return
-        files = sorted(
-            p for p in repair_dir.iterdir() if p.is_file() and _IMAGE_FILE_RE.match(p.name)
-        )
+        files = sorted(p for p in repair_dir.iterdir() if p.is_file() and _IMAGE_FILE_RE.match(p.name))
         for path in files:
             yield self._reconstruct(path, repair_id)
 
@@ -72,7 +67,7 @@ class FilesystemImageRepository:
             if not vdir.is_dir() or vdir.name.startswith("_"):
                 continue
             for rdir in vdir.iterdir():
-                if not rdir.is_dir() or not _REPAIR_DIR_RE.match(rdir.name):
+                if not rdir.is_dir() or not REPAIR_DIR_NAME_RE.match(rdir.name):
                     continue
                 sidecar = rdir / "_repair.json"
                 if not sidecar.is_file():
@@ -89,7 +84,7 @@ class FilesystemImageRepository:
             if not vdir.is_dir() or vdir.name.startswith("_"):
                 continue
             for rdir in vdir.iterdir():
-                if not rdir.is_dir() or not _REPAIR_DIR_RE.match(rdir.name):
+                if not rdir.is_dir() or not REPAIR_DIR_NAME_RE.match(rdir.name):
                     continue
                 sidecar = rdir / "_repair.json"
                 if not sidecar.is_file():
