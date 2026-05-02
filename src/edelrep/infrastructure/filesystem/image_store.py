@@ -46,7 +46,8 @@ class FilesystemImageRepository:
             raise RepairNotFound(image.repair_id)
         existing = sum(1 for p in repair_dir.iterdir() if p.is_file() and _IMAGE_FILE_RE.match(p.name))
         seq = existing + 1
-        extension = (image.filename.rsplit(".", 1)[-1] or "bin").lower()
+        parts = image.filename.rsplit(".", 1)
+        extension = (parts[1] if len(parts) == 2 and parts[1] else "bin").lower()
         name = image_filename(seq=seq, image_id=image.id, extension=extension)
         write_bytes_atomic(repair_dir / name, raw_bytes)
         if thumbnail_bytes is not None:

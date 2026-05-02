@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from ulid import ULID
 
-from edelrep.domain.entities import ImageSource, Repair, Vehicle
+from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
 from edelrep.domain.exceptions import ImageNotFound, RepairNotFound
 from edelrep.domain.ports import ImageRepository
 from edelrep.infrastructure.filesystem.image_store import FilesystemImageRepository
@@ -61,6 +61,36 @@ def test_save_no_thumbnail(
     repo.save(img, raw_bytes=sample_image_bytes)
     repair_path = storage_root / "12345" / "2026-04-15__bremsbelage-vorne"
     assert not (repair_path / "_thumbs").exists()
+
+
+def test_save_falls_back_to_bin_extension_for_extensionless_filename(
+    storage_root: Path,
+    sample_vehicle: Vehicle,
+    sample_repair: Repair,
+    sample_image_bytes: bytes,
+) -> None:
+    _seed(storage_root, sample_vehicle, sample_repair)
+    repo = FilesystemImageRepository(storage_root)
+    iid = ULID()
+    img = make_image(sample_repair.id, image_id=iid)
+    img_no_ext = Image(
+        id=img.id,
+        repair_id=img.repair_id,
+        storage_key=img.storage_key,
+        thumbnail_key=img.thumbnail_key,
+        filename="no_extension",
+        mime_type=img.mime_type,
+        size_bytes=img.size_bytes,
+        source=img.source,
+        uploaded_at=img.uploaded_at,
+        captured_at=img.captured_at,
+    )
+    repo.save(img_no_ext, raw_bytes=sample_image_bytes)
+    repair_path = storage_root / "12345" / "2026-04-15__bremsbelage-vorne"
+    files = list(repair_path.iterdir())
+    image_files = [p for p in files if p.is_file()]
+    assert len(image_files) == 1
+    assert image_files[0].suffix == ".bin"
 
 
 def test_list_for_repair_returns_uploaded_images_in_order(
