@@ -26,6 +26,7 @@ ignore = [
     "E501",      # line too long (handled by formatter)
     "PLR0913",   # too many arguments
     "PLR2004",   # magic value comparison
+    "N818",      # domain exceptions use DDD-style names without Error suffix
 ]
 
 [lint.per-file-ignores]

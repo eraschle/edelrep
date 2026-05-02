@@ -1,8 +1,7 @@
 import re
 
 import pytest
-from hypothesis import given
-from hypothesis import strategies as st
+from hypothesis import given, strategies as st
 
 from edelrep.domain.exceptions import InvalidVehicleId
 from edelrep.domain.value_objects import VehicleId
