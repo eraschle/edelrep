@@ -50,6 +50,10 @@ def thumbnail_path(repair_dir: Path, image_filename_value: str) -> Path:
 
 
 def unique_repair_dir_name(parent: Path, base: str) -> str:
+    """Return a collision-free name under ``parent``.
+
+    Not safe under concurrent writers — V1 is single-process per PLAN.md §2.
+    """
     if not (parent / base).exists():
         return base
     n = 2
