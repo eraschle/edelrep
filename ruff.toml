@@ -1,0 +1,47 @@
+line-length = 110
+target-version = "py313"
+extend-exclude = [".venv", "build", "dist"]
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "N",      # pep8-naming
+    "SIM",    # flake8-simplify
+    "RET",    # flake8-return
+    "PTH",    # flake8-use-pathlib
+    "PL",     # pylint
+    "RUF",    # ruff-specific rules
+    "ARG",    # flake8-unused-arguments
+    "TID",    # flake8-tidy-imports
+    "TCH",    # flake8-type-checking
+    "ERA",    # eradicate
+]
+ignore = [
+    "E501",      # line too long (handled by formatter)
+    "PLR0913",   # too many arguments
+    "PLR2004",   # magic value comparison
+]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["PLR2004", "ARG", "PLR0913"]
+"__init__.py" = ["F401"]
+
+[lint.isort]
+known-first-party = ["edelrep"]
+combine-as-imports = true
+
+[lint.pydocstyle]
+convention = "google"
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+docstring-code-format = true
+skip-magic-trailing-comma = false
