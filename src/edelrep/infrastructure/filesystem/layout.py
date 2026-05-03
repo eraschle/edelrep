@@ -62,3 +62,40 @@ def unique_repair_dir_name(parent: Path, base: str) -> str:
     while (parent / f"{base}-{n}").exists():
         n += 1
     return f"{base}-{n}"
+
+
+_VEHICLE_SIDECAR_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/_vehicle\.json$")
+_REPAIR_SIDECAR_KEY_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/\d{4}-\d{2}-\d{2}__[a-z0-9-]+/_repair\.json$"
+)
+_IMAGE_KEY_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/\d{4}-\d{2}-\d{2}__[a-z0-9-]+/\d{4}_[0-9A-HJKMNP-TV-Z]{26}\.[a-zA-Z0-9]+$"
+)
+
+
+def vehicle_sidecar_key(vehicle_id: VehicleId) -> str:
+    return f"{vehicle_id.registration_number}/_vehicle.json"
+
+
+def repair_sidecar_key(vehicle_id: VehicleId, dir_name: str) -> str:
+    return f"{vehicle_id.registration_number}/{dir_name}/_repair.json"
+
+
+def image_key(vehicle_id: VehicleId, dir_name: str, filename: str) -> str:
+    return f"{vehicle_id.registration_number}/{dir_name}/{filename}"
+
+
+def thumbnail_key(vehicle_id: VehicleId, dir_name: str, filename: str) -> str:
+    return f"{vehicle_id.registration_number}/{dir_name}/_thumbs/{filename}"
+
+
+def is_vehicle_sidecar_key(key: str) -> bool:
+    return bool(_VEHICLE_SIDECAR_KEY_RE.match(key))
+
+
+def is_repair_sidecar_key(key: str) -> bool:
+    return bool(_REPAIR_SIDECAR_KEY_RE.match(key))
+
+
+def is_image_key(key: str) -> bool:
+    return bool(_IMAGE_KEY_RE.match(key))

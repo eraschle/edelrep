@@ -7,12 +7,19 @@ from ulid import ULID
 from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.layout import (
     image_filename,
+    image_key,
+    is_image_key,
+    is_repair_sidecar_key,
+    is_vehicle_sidecar_key,
     repair_dir_name,
+    repair_sidecar_key,
     repair_sidecar_path,
     slugify,
+    thumbnail_key,
     thumbnail_path,
     unique_repair_dir_name,
     vehicle_dir,
+    vehicle_sidecar_key,
     vehicle_sidecar_path,
 )
 
@@ -98,3 +105,77 @@ def test_unique_repair_dir_name_multiple_collisions(tmp_path: Path) -> None:
     (tmp_path / f"{base}-2").mkdir()
     (tmp_path / f"{base}-3").mkdir()
     assert unique_repair_dir_name(tmp_path, base) == f"{base}-4"
+
+
+def test_vehicle_sidecar_key() -> None:
+    assert vehicle_sidecar_key(VehicleId("12345")) == "12345/_vehicle.json"
+
+
+def test_repair_sidecar_key() -> None:
+    key = repair_sidecar_key(VehicleId("12345"), "2026-04-15__brakes")
+    assert key == "12345/2026-04-15__brakes/_repair.json"
+
+
+def test_image_key_format() -> None:
+    assert (
+        image_key(
+            VehicleId("12345"),
+            "2026-04-15__brakes",
+            "0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg",
+        )
+        == "12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"
+    )
+
+
+def test_thumbnail_key_format() -> None:
+    assert (
+        thumbnail_key(
+            VehicleId("12345"),
+            "2026-04-15__brakes",
+            "0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg",
+        )
+        == "12345/2026-04-15__brakes/_thumbs/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"
+    )
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        ("12345/_vehicle.json", True),
+        ("12345/2026-04-15__brakes/_repair.json", False),
+        ("_system/inbox/foo.eml", False),
+        ("12345/_vehicle.json/extra", False),
+        ("12345/", False),
+        ("", False),
+    ],
+)
+def test_is_vehicle_sidecar_key(key: str, expected: bool) -> None:
+    assert is_vehicle_sidecar_key(key) is expected
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        ("12345/2026-04-15__brakes/_repair.json", True),
+        ("12345/_vehicle.json", False),
+        ("12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", False),
+        ("12345/2026-04-15__BRAKES/_repair.json", False),
+        ("_system/inbox/_repair.json", False),
+    ],
+)
+def test_is_repair_sidecar_key(key: str, expected: bool) -> None:
+    assert is_repair_sidecar_key(key) is expected
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        ("12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", True),
+        ("12345/2026-04-15__brakes/_thumbs/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", False),
+        ("12345/2026-04-15__brakes/_repair.json", False),
+        ("12345/_vehicle.json", False),
+        ("12345/2026-04-15__brakes/badname.jpg", False),
+    ],
+)
+def test_is_image_key(key: str, expected: bool) -> None:
+    assert is_image_key(key) is expected
