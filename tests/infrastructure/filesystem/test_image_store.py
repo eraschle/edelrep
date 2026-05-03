@@ -9,12 +9,13 @@ from edelrep.domain.ports import ImageRepository
 from edelrep.infrastructure.filesystem.image_store import FilesystemImageRepository
 from edelrep.infrastructure.filesystem.repair_store import FilesystemRepairRepository
 from edelrep.infrastructure.filesystem.vehicle_store import FilesystemVehicleRepository
+from edelrep.infrastructure.storage import LocalFilesystemBackend
 
 from .conftest import make_image  # type: ignore[import-not-found]
 
 
 def _seed(root: Path, vehicle: Vehicle, repair: Repair) -> None:
-    FilesystemVehicleRepository(root).save(vehicle)
+    FilesystemVehicleRepository(LocalFilesystemBackend(root)).save(vehicle)
     FilesystemRepairRepository(root).save(repair)
 
 
@@ -41,7 +42,7 @@ def test_save_raises_when_repair_missing(
     sample_repair: Repair,
     sample_image_bytes: bytes,
 ) -> None:
-    FilesystemVehicleRepository(storage_root).save(sample_vehicle)
+    FilesystemVehicleRepository(LocalFilesystemBackend(storage_root)).save(sample_vehicle)
     # Note: repair NOT saved.
     repo = FilesystemImageRepository(storage_root)
     img = make_image(sample_repair.id)
@@ -173,7 +174,7 @@ def test_save_skips_when_repair_dir_has_no_sidecar(
     sample_repair: Repair,
     sample_image_bytes: bytes,
 ) -> None:
-    FilesystemVehicleRepository(storage_root).save(sample_vehicle)
+    FilesystemVehicleRepository(LocalFilesystemBackend(storage_root)).save(sample_vehicle)
     # Create a repair-shaped dir but without _repair.json — _find_repair_dir must skip it.
     bogus = storage_root / "12345" / "2026-04-15__no-sidecar"
     bogus.mkdir()

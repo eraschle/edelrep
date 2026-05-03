@@ -14,10 +14,11 @@ from edelrep.domain.ports import RepairRepository
 from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.repair_store import FilesystemRepairRepository
 from edelrep.infrastructure.filesystem.vehicle_store import FilesystemVehicleRepository
+from edelrep.infrastructure.storage import LocalFilesystemBackend
 
 
 def _seed_vehicle(root: Path, sample_vehicle: Vehicle) -> None:
-    FilesystemVehicleRepository(root).save(sample_vehicle)
+    FilesystemVehicleRepository(LocalFilesystemBackend(root)).save(sample_vehicle)
 
 
 def test_save_and_get(storage_root: Path, sample_vehicle: Vehicle, sample_repair: Repair) -> None:

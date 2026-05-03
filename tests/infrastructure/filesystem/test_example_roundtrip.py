@@ -11,6 +11,7 @@ from edelrep.infrastructure.filesystem import (
     FilesystemRepairRepository,
     FilesystemVehicleRepository,
 )
+from edelrep.infrastructure.storage import LocalFilesystemBackend
 
 FIXTURE = Path(__file__).parent / "fixtures" / "example_storage_root"
 
@@ -23,7 +24,7 @@ def working_root(tmp_path: Path) -> Path:
 
 
 def test_can_read_vehicle_from_fixture(working_root: Path) -> None:
-    repo = FilesystemVehicleRepository(working_root)
+    repo = FilesystemVehicleRepository(LocalFilesystemBackend(working_root))
     vehicle = repo.get(VehicleId("12345"))
     assert vehicle.id == VehicleId("12345")
     assert vehicle.vin == "WDB12345TEST"
@@ -48,7 +49,7 @@ def test_can_list_images_from_fixture(working_root: Path) -> None:
 
 
 def test_round_trip_re_save_produces_byte_identical_sidecar(working_root: Path) -> None:
-    repo = FilesystemVehicleRepository(working_root)
+    repo = FilesystemVehicleRepository(LocalFilesystemBackend(working_root))
     vehicle = repo.get(VehicleId("12345"))
     sidecar_before = (working_root / "12345" / "_vehicle.json").read_text(encoding="utf-8")
     repo.update(vehicle)
