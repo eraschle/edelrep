@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from ulid import ULID
 
@@ -16,6 +16,7 @@ class ProcessedImage:
     mime_type: str
 
 
+@runtime_checkable
 class ImageProcessor(Protocol):
     def process(self, raw_bytes: bytes) -> ProcessedImage: ...
 
