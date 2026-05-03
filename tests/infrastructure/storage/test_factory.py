@@ -44,3 +44,8 @@ def test_local_creates_root_if_missing(tmp_path: Path) -> None:
     assert not target.exists()
     build_storage_backend({"mode": "local", "root": str(target)})
     assert target.is_dir()
+
+
+def test_fsspec_unknown_protocol_wrapped() -> None:
+    with pytest.raises(ValueError, match=r"storage\.mode=fsspec"):
+        build_storage_backend({"mode": "fsspec", "fsspec": {"protocol": "carrier-pigeon", "root": "/x"}})

@@ -41,6 +41,9 @@ def build_storage_backend(config: dict[str, Any]) -> StorageBackend:
         if not root:
             raise ValueError("storage.mode=fsspec requires fsspec.root")
         options = fs_cfg.get("options") or {}
-        fs = fsspec.filesystem(protocol, **options)
+        try:
+            fs = fsspec.filesystem(protocol, **options)
+        except ValueError as exc:
+            raise ValueError(f"storage.mode=fsspec: {exc}") from exc
         return FsspecBackend(fs, root=root)
     raise ValueError(f"unknown storage mode: {mode!r}")
