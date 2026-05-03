@@ -10,6 +10,9 @@ dependencies = [
     "python-ulid>=3.0.0",
 ]
 
+[project.scripts]
+edelrep = "edelrep.cli.main:main"
+
 [dependency-groups]
 dev = [
     "ruff>=0.8.0",
