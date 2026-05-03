@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
 
 from edelrep.presentation.container import Container
+from edelrep.presentation.routes import home, search
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -27,5 +28,8 @@ def create_app(container: Container) -> FastAPI:
     app = FastAPI(title="edelrep", lifespan=_lifespan)
     app.state.container = container
     app.state.templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
-    # Routes are registered as they're added in P7.6-P7.9.
+
+    app.include_router(home.router)
+    app.include_router(search.router)
+
     return app
