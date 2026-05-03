@@ -30,9 +30,7 @@ class DriftDetector:
         return False
 
     def _read_last_reindex(self) -> datetime | None:
-        cur = self._conn.execute(
-            "SELECT value FROM meta WHERE key = 'last_full_reindex'"
-        )
+        cur = self._conn.execute("SELECT value FROM meta WHERE key = 'last_full_reindex'")
         row = cur.fetchone()
         if row is None:
             return None
