@@ -40,7 +40,7 @@ def test_can_list_repairs_from_fixture(working_root: Path) -> None:
 
 def test_can_list_images_from_fixture(working_root: Path) -> None:
     repair_repo = FilesystemRepairRepository(LocalFilesystemBackend(working_root))
-    image_repo = FilesystemImageRepository(working_root)
+    image_repo = FilesystemImageRepository(LocalFilesystemBackend(working_root))
     repair = next(iter(repair_repo.list_for_vehicle(VehicleId("12345"))))
     images = list(image_repo.list_for_repair(repair.id))
     assert len(images) == 1
