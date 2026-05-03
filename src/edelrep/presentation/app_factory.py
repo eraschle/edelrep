@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
 
 from edelrep.presentation.container import Container
-from edelrep.presentation.routes import home, search
+from edelrep.presentation.routes import home, search, vehicles
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -31,5 +31,6 @@ def create_app(container: Container) -> FastAPI:
 
     app.include_router(home.router)
     app.include_router(search.router)
+    app.include_router(vehicles.router)
 
     return app

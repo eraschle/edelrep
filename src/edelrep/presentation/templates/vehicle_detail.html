@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ vehicle.id.registration_number }} – edelrep{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-2">{{ vehicle.id.registration_number }}</h1>
+{% if vehicle.vin %}
+  <p>{{ vehicle_labels["vin"] }}: <span class="font-mono">{{ vehicle.vin }}</span></p>
+{% endif %}
+{% if vehicle.description %}
+  <p>{{ vehicle_labels["description"] }}: {{ vehicle.description }}</p>
+{% endif %}
+<div class="my-6">
+  <a href="/vehicles/{{ vehicle.id.registration_number }}/repairs/new"
+     class="bg-blue-600 text-white px-4 py-2 rounded">+ Reparatur</a>
+</div>
+<h2 class="text-xl font-semibold mb-3">Reparaturen</h2>
+{% if repairs %}
+<ul class="space-y-3">
+{% for r in repairs %}
+  <li class="bg-white border rounded p-4">
+    <div class="flex justify-between items-baseline">
+      <strong>{{ r.description }}</strong>
+      <span class="text-sm text-slate-500">{{ r.date.isoformat() }}</span>
+    </div>
+    <a href="/vehicles/{{ vehicle.id.registration_number }}/repairs/{{ r.id }}/upload"
+       class="text-sm text-blue-600 hover:underline">Bilder hochladen →</a>
+  </li>
+{% endfor %}
+</ul>
+{% else %}
+<p class="text-slate-500">Noch keine Reparaturen.</p>
+{% endif %}
+{% endblock %}

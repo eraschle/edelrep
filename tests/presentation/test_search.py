@@ -16,12 +16,8 @@ def test_suggestions_empty_query_returns_empty_state(client: TestClient) -> None
     assert "Keine Fahrzeuge gefunden" in response.text
 
 
-def test_suggestions_returns_matches(
-    client: TestClient, container: Container
-) -> None:
-    container.create_vehicle.execute(
-        registration_number="12345", vin="WDB123", description="Kran"
-    )
+def test_suggestions_returns_matches(client: TestClient, container: Container) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin="WDB123", description="Kran")
     response = client.get("/search/suggestions?q=WDB")
     assert response.status_code == 200
     assert "12345" in response.text
