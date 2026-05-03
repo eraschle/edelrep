@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Suche – edelrep{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-6">Fahrzeug suchen</h1>
+<input type="search"
+       name="q"
+       placeholder="Stammnummer oder Rahmennummer eingeben"
+       hx-get="/search/suggestions"
+       hx-trigger="keyup changed delay:200ms, search"
+       hx-target="#suggestions"
+       class="w-full p-4 text-2xl border-2 rounded mb-4">
+<div id="suggestions">
+  {% include "_vehicle_search_results.html" %}
+</div>
+{% endblock %}

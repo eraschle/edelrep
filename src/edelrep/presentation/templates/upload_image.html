@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Bilder hochladen{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Bilder hochladen</h1>
+<form method="post"
+      action="/vehicles/{{ registration_number }}/repairs/{{ repair_id }}/images"
+      enctype="multipart/form-data"
+      class="space-y-4">
+  <div>
+    <label for="image" class="block text-sm font-medium">Bilddatei</label>
+    <input type="file" id="image" name="image" accept="image/*" required
+           class="w-full p-3 border rounded bg-white">
+  </div>
+  <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded font-semibold">Hochladen</button>
+</form>
+{% endblock %}
