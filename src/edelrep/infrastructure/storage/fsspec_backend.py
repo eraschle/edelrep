@@ -23,12 +23,7 @@ class FsspecBackend:
         return f"{self._root}/{key}" if key else self._root
 
     def read_bytes(self, key: str) -> bytes:
-        try:
-            return self._fs.cat_file(self._full(key))  # type: ignore[no-any-return]
-        except FileNotFoundError:
-            raise
-        except OSError as exc:
-            raise FileNotFoundError(str(exc)) from exc
+        return self._fs.cat_file(self._full(key))  # type: ignore[no-any-return]
 
     def write_bytes(self, key: str, data: bytes) -> None:
         self._fs.pipe_file(self._full(key), data)
