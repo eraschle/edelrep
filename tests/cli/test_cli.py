@@ -1,6 +1,7 @@
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -75,6 +76,21 @@ def test_watch_with_pre_set_stop_event_returns_immediately(tmp_path: Path) -> No
     code = _cmd_watch(storage, index_path, stop_event=stop_event)
     assert code == 0
     assert index_path.is_file()
+
+
+def test_watch_command_via_main_dispatches_to_cmd_watch(tmp_path: Path) -> None:
+    """Exercise the main() -> _cmd_watch dispatch (lines 59-60) and the
+    threading.Event() creation branch when no stop_event is supplied."""
+    storage = tmp_path / "store"
+    storage.mkdir()
+    index_path = tmp_path / "index.db"
+    # Patch threading.Event so the wait() returns instantly.
+    pre_set = threading.Event()
+    pre_set.set()
+    with patch("edelrep.cli.main.threading") as mock_threading:
+        mock_threading.Event.return_value = pre_set
+        code = main(["watch", "--storage-root", str(storage), "--index-path", str(index_path)])
+    assert code == 0
 
 
 def test_watch_prints_drift_warning_when_drifted(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

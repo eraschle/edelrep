@@ -117,7 +117,7 @@ def _cmd_watch(
     event = stop_event if stop_event is not None else threading.Event()
     try:
         event.wait()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover - SIGINT cannot be reliably tested
         pass
     finally:
         live.stop()
