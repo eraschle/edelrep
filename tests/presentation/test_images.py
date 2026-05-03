@@ -1,10 +1,11 @@
 import io
-from datetime import date
+from datetime import UTC, date, datetime
 
 from fastapi.testclient import TestClient
 from PIL import Image as PILImage
 from ulid import ULID
 
+from edelrep.domain.entities import Image, ImageSource
 from edelrep.domain.value_objects import VehicleId
 from edelrep.presentation.container import Container
 
@@ -105,3 +106,52 @@ def test_upload_non_image_returns_422(client: TestClient, container: Container) 
         files={"image": ("photo.jpg", b"this is not an image", "image/jpeg")},
     )
     assert r.status_code == 422
+
+
+def test_upload_form_for_missing_vehicle_returns_404(client: TestClient) -> None:
+    r = client.get("/vehicles/99999/repairs/01J9TGZP6X2K0V3W7Y8Z4QABCD/upload")
+    assert r.status_code == 404
+
+
+def test_upload_form_for_invalid_vehicle_id_returns_404(client: TestClient) -> None:
+    r = client.get("/vehicles/with space/repairs/01J9TGZP6X2K0V3W7Y8Z4QABCD/upload")
+    # The whitespace registration_number is invalid AND not a 12345-style URL.
+    # FastAPI may URL-encode; assert 404 regardless.
+    assert r.status_code == 404
+
+
+def test_upload_image_with_invalid_repair_id_returns_404(client: TestClient, container: Container) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    jpeg = _make_jpeg()
+    r = client.post(
+        "/vehicles/12345/repairs/not-a-ulid/images",
+        files={"image": ("photo.jpg", jpeg, "image/jpeg")},
+    )
+    assert r.status_code == 404
+
+
+def test_thumbnail_returns_404_when_image_has_no_thumbnail(client: TestClient, container: Container) -> None:
+    """If an image was saved without thumbnail_bytes, the thumbnail endpoint 404s."""
+    # Seed via the use case path, then directly save a no-thumbnail image via repo.
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    repair = container.create_repair.execute(
+        vehicle_id=VehicleId("12345"),
+        repair_date=date(2026, 5, 3),
+        description="brakes",
+    )
+    iid = ULID()
+    img = Image(
+        id=iid,
+        repair_id=repair.id,
+        storage_key="placeholder",
+        thumbnail_key=None,
+        filename="upload.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime(2026, 5, 3, tzinfo=UTC),
+        captured_at=None,
+    )
+    container.image_repo.save(img, raw_bytes=b"\xff\xd8\xff\xd9")
+    r = client.get(f"/images/{iid}/thumbnail")
+    assert r.status_code == 404
