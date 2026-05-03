@@ -61,6 +61,8 @@ def upload_image(
         )
     except RepairNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return RedirectResponse(
         url=f"/vehicles/{registration_number}",
         status_code=303,

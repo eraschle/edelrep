@@ -96,3 +96,14 @@ def test_get_missing_image_raw_returns_404(client: TestClient) -> None:
 def test_get_missing_image_thumbnail_returns_404(client: TestClient) -> None:
     r = client.get("/images/01J9TGZP6X2K0V3W7Y8Z4QABCD/thumbnail")
     assert r.status_code == 404
+
+
+def test_upload_non_image_returns_422(
+    client: TestClient, container: Container
+) -> None:
+    repair_id = _seed_repair(container)
+    r = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("photo.jpg", b"this is not an image", "image/jpeg")},
+    )
+    assert r.status_code == 422
