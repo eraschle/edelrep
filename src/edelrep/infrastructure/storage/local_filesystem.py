@@ -16,7 +16,19 @@ class LocalFilesystemBackend:
         self._root = Path(root)
 
     def _path(self, key: str) -> Path:
-        return self._root.joinpath(*key.split("/")) if key else self._root
+        if not key:
+            return self._root
+        candidate = self._root.joinpath(*key.split("/"))
+        # Refuse anything that escapes the root (resolves ".." segments etc).
+        root_resolved = self._root.resolve()
+        try:
+            resolved = candidate.resolve(strict=False)
+        except (OSError, RuntimeError) as exc:
+            raise ValueError(f"key {key!r} cannot be resolved under storage root") from exc
+        if resolved != root_resolved and not resolved.is_relative_to(root_resolved):
+            raise ValueError(f"key {key!r} escapes storage root")
+        # Return the unresolved path so symlinks / non-existent parents work normally.
+        return candidate
 
     def read_bytes(self, key: str) -> bytes:
         return self._path(key).read_bytes()

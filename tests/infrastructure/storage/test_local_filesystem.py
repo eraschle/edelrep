@@ -99,3 +99,24 @@ def test_list_prefix_when_root_missing(tmp_path: Path) -> None:
 def test_satisfies_protocol(tmp_path: Path) -> None:
     backend: StorageBackend = LocalFilesystemBackend(tmp_path)
     assert isinstance(backend, StorageBackend)
+
+
+@pytest.mark.parametrize(
+    "bad_key",
+    [
+        "../etc/passwd",
+        "../../etc/passwd",
+        "vehicle/../../../etc/passwd",
+        "..",
+    ],
+)
+def test_rejects_path_traversal(backend: LocalFilesystemBackend, bad_key: str) -> None:
+    with pytest.raises(ValueError, match="escapes storage root"):
+        backend.write_bytes(bad_key, b"x")
+
+
+def test_dot_segments_within_root_allowed(backend: LocalFilesystemBackend) -> None:
+    # "a/b/.." resolves to "a", which is still inside root.
+    backend.write_bytes("a/b/c.txt", b"x")
+    backend.write_bytes("a/b/../d.txt", b"y")
+    assert backend.read_bytes("a/d.txt") == b"y"
