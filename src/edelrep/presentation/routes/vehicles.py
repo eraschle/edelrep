@@ -59,6 +59,7 @@ def vehicle_detail(
     except (VehicleNotFound, InvalidVehicleId) as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     repairs = list(container.list_repairs.execute(vehicle.id))
+    images_by_repair = {str(r.id): list(container.image_repo.list_for_repair(r.id)) for r in repairs}
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request,
@@ -68,5 +69,6 @@ def vehicle_detail(
             "repairs": repairs,
             "vehicle_labels": VEHICLE_FIELDS,
             "repair_labels": REPAIR_FIELDS,
+            "images_by_repair": images_by_repair,
         },
     )

@@ -21,6 +21,17 @@
       <strong>{{ r.description }}</strong>
       <span class="text-sm text-slate-500">{{ r.date.isoformat() }}</span>
     </div>
+    {% set repair_images = images_by_repair.get(r.id|string, []) %}
+    {% if repair_images %}
+    <div class="mt-3 flex gap-2 overflow-x-auto">
+    {% for img in repair_images %}
+      <a href="/images/{{ img.id }}/raw" target="_blank">
+        <img src="/images/{{ img.id }}/thumbnail" alt="{{ img.filename }}"
+             class="h-24 w-24 object-cover border rounded">
+      </a>
+    {% endfor %}
+    </div>
+    {% endif %}
     <a href="/vehicles/{{ vehicle.id.registration_number }}/repairs/{{ r.id }}/upload"
        class="text-sm text-blue-600 hover:underline">Bilder hochladen →</a>
   </li>
