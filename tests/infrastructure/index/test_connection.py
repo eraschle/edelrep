@@ -72,4 +72,5 @@ def test_fts5_table_searchable() -> None:
         ("Kran",),
     )
     rows = cur.fetchall()
-    assert rows == [("12345",)]
+    assert len(rows) == 1
+    assert rows[0]["registration_number"] == "12345"
