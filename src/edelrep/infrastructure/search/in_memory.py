@@ -1,0 +1,47 @@
+from collections.abc import Iterable
+
+from edelrep.domain.entities import Vehicle
+from edelrep.domain.value_objects import VehicleId
+
+
+class InMemorySearchIndex:
+    """Dict-backed SearchIndex implementation.
+
+    Search is case-insensitive substring match across registration_number,
+    vin, and description. Empty queries return an empty list.
+
+    Useful both as a test fake and as a dev-mode adapter until Phase 5
+    SQLite + FTS5 ships.
+    """
+
+    def __init__(self) -> None:
+        self._rows: dict[VehicleId, Vehicle] = {}
+
+    def search_vehicles(self, query: str, limit: int = 20) -> Iterable[Vehicle]:
+        if not query:
+            return []
+        needle = query.lower()
+        results: list[Vehicle] = []
+        for vehicle in self._rows.values():
+            haystack = " ".join(
+                str(part)
+                for part in (
+                    vehicle.id.registration_number,
+                    vehicle.vin or "",
+                    vehicle.description or "",
+                )
+            ).lower()
+            if needle in haystack:
+                results.append(vehicle)
+            if len(results) >= limit:
+                break
+        return results
+
+    def upsert_vehicle(self, vehicle: Vehicle) -> None:
+        self._rows[vehicle.id] = vehicle
+
+    def remove_vehicle(self, vehicle_id: VehicleId) -> None:
+        self._rows.pop(vehicle_id, None)
+
+    def clear(self) -> None:
+        self._rows.clear()
