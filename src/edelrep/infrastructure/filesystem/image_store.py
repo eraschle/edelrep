@@ -2,36 +2,49 @@ import mimetypes
 import re
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from pathlib import Path
 
 from ulid import ULID
 
 from edelrep.domain.entities import Image, ImageSource
 from edelrep.domain.exceptions import ImageNotFound, RepairNotFound
-from edelrep.infrastructure.filesystem.atomic_write import write_bytes_atomic
-from edelrep.infrastructure.filesystem.layout import REPAIR_DIR_NAME_RE, image_filename, thumbnail_path
-from edelrep.infrastructure.filesystem.sidecar import read_sidecar
+from edelrep.domain.ports import StorageBackend
+from edelrep.domain.value_objects import VehicleId
+from edelrep.infrastructure.filesystem.layout import (
+    image_filename,
+    image_key,
+    is_image_key,
+    is_repair_sidecar_key,
+    thumbnail_key,
+)
+from edelrep.infrastructure.filesystem.sidecar import read_backend_sidecar
 
 _IMAGE_FILE_RE = re.compile(r"^(\d{4})_([0-9A-HJKMNP-TV-Z]{26})\.([a-zA-Z0-9]+)$")
 
 
 class FilesystemImageRepository:
-    """ImageRepository implementation that stores raw bytes plus optional thumbnails.
+    """ImageRepository implementation against any StorageBackend.
 
-    Phase 2 read-time defaults (documented in PLAN.md §6 / plan §Design Notes):
-    - source is always ImageSource.MANUAL on read; the EMAIL distinction
-      requires Phase 8 inbox correlation.
-    - captured_at is always None on read; EXIF parsing arrives in Phase 4.
+    Phase 3 read-time defaults (carried forward to Phase 5):
+
+    - ``source = ImageSource.MANUAL`` — Phase 8 inbox correlation pending.
+    - ``captured_at = None`` — Phase 4 EXIF parsing pending.
+    - ``uploaded_at = datetime.now(UTC)`` — the StorageBackend port has
+      no mtime accessor; Phase 5 SQLite index will track upload time
+      properly.
     """
 
-    def __init__(self, root: Path) -> None:
-        self._root = root
+    def __init__(self, backend: StorageBackend) -> None:
+        self._backend = backend
 
     def get(self, image_id: ULID) -> Image:
-        for image_path, repair_id in self._iter_image_files():
-            match = _IMAGE_FILE_RE.match(image_path.name)
+        for key in self._backend.list_prefix(""):
+            if not is_image_key(key):
+                continue
+            filename = key.rsplit("/", 1)[1]
+            match = _IMAGE_FILE_RE.match(filename)
             if match and ULID.from_str(match.group(2)) == image_id:
-                return self._reconstruct(image_path, repair_id)
+                repair_id = self._repair_id_for_image_key(key)
+                return self._reconstruct(key, repair_id)
         raise ImageNotFound(image_id)
 
     def save(
@@ -41,80 +54,70 @@ class FilesystemImageRepository:
         raw_bytes: bytes,
         thumbnail_bytes: bytes | None = None,
     ) -> None:
-        repair_dir = self._find_repair_dir(image.repair_id)
-        if repair_dir is None:
+        repair_path = self._find_repair_path(image.repair_id)
+        if repair_path is None:
             raise RepairNotFound(image.repair_id)
-        existing = sum(1 for p in repair_dir.iterdir() if p.is_file() and _IMAGE_FILE_RE.match(p.name))
+        reg_no, dir_name = repair_path
+        prefix = f"{reg_no}/{dir_name}/"
+        existing = sum(1 for k in self._backend.list_prefix(prefix) if is_image_key(k))
         seq = existing + 1
         parts = image.filename.rsplit(".", 1)
         extension = (parts[1] if len(parts) == 2 and parts[1] else "bin").lower()
+        vehicle_id = VehicleId(reg_no)
         name = image_filename(seq=seq, image_id=image.id, extension=extension)
-        write_bytes_atomic(repair_dir / name, raw_bytes)
+        self._backend.write_bytes(image_key(vehicle_id, dir_name, name), raw_bytes)
         if thumbnail_bytes is not None:
-            write_bytes_atomic(thumbnail_path(repair_dir, name), thumbnail_bytes)
+            self._backend.write_bytes(thumbnail_key(vehicle_id, dir_name, name), thumbnail_bytes)
 
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
-        repair_dir = self._find_repair_dir(repair_id)
-        if repair_dir is None:
+        repair_path = self._find_repair_path(repair_id)
+        if repair_path is None:
             return
-        files = sorted(p for p in repair_dir.iterdir() if p.is_file() and _IMAGE_FILE_RE.match(p.name))
-        for path in files:
-            yield self._reconstruct(path, repair_id)
+        reg_no, dir_name = repair_path
+        prefix = f"{reg_no}/{dir_name}/"
+        keys = sorted(k for k in self._backend.list_prefix(prefix) if is_image_key(k))
+        for key in keys:
+            yield self._reconstruct(key, repair_id)
 
-    def _find_repair_dir(self, repair_id: ULID) -> Path | None:
-        if not self._root.is_dir():
-            return None
-        for vdir in self._root.iterdir():
-            if not vdir.is_dir() or vdir.name.startswith("_"):
+    def _find_repair_path(self, repair_id: ULID) -> tuple[str, str] | None:
+        for key in self._backend.list_prefix(""):
+            if not is_repair_sidecar_key(key):
                 continue
-            for rdir in vdir.iterdir():
-                if not rdir.is_dir() or not REPAIR_DIR_NAME_RE.match(rdir.name):
-                    continue
-                sidecar = rdir / "_repair.json"
-                if not sidecar.is_file():
-                    continue
-                data = read_sidecar(sidecar)
-                if str(data.get("id")) == str(repair_id):
-                    return rdir
+            data = read_backend_sidecar(self._backend, key)
+            if str(data.get("id")) == str(repair_id):
+                # key shape: "<reg>/<dir_name>/_repair.json"
+                reg_no, dir_name, _ = key.split("/", 2)
+                # dir_name now equals the second segment; the trailing "/_repair.json"
+                # was consumed by split's third part.
+                return reg_no, dir_name
         return None
 
-    def _iter_image_files(self) -> Iterable[tuple[Path, ULID]]:
-        if not self._root.is_dir():
-            return
-        for vdir in self._root.iterdir():
-            if not vdir.is_dir() or vdir.name.startswith("_"):
-                continue
-            for rdir in vdir.iterdir():
-                if not rdir.is_dir() or not REPAIR_DIR_NAME_RE.match(rdir.name):
-                    continue
-                sidecar = rdir / "_repair.json"
-                if not sidecar.is_file():
-                    continue
-                data = read_sidecar(sidecar)
-                rid = ULID.from_str(str(data["id"]))
-                for entry in rdir.iterdir():
-                    if entry.is_file() and _IMAGE_FILE_RE.match(entry.name):
-                        yield entry, rid
+    def _repair_id_for_image_key(self, key: str) -> ULID:
+        # key shape: "<reg>/<dir>/<filename>"
+        reg_no, dir_name, _ = key.split("/", 2)
+        sidecar = f"{reg_no}/{dir_name}/_repair.json"
+        data = read_backend_sidecar(self._backend, sidecar)
+        return ULID.from_str(str(data["id"]))
 
-    def _reconstruct(self, path: Path, repair_id: ULID) -> Image:
-        match = _IMAGE_FILE_RE.match(path.name)
-        if match is None:  # pragma: no cover - callers pre-filter on _IMAGE_FILE_RE
-            raise ValueError(f"unexpected image filename: {path.name!r}")
+    def _reconstruct(self, key: str, repair_id: ULID) -> Image:
+        filename = key.rsplit("/", 1)[1]
+        match = _IMAGE_FILE_RE.match(filename)
+        if match is None:  # pragma: no cover - callers pre-filter on is_image_key
+            raise ValueError(f"unexpected image filename: {filename!r}")
         image_id = ULID.from_str(match.group(2))
-        thumb = path.parent / "_thumbs" / path.name
-        rel_storage = path.relative_to(self._root).as_posix()
-        rel_thumb = thumb.relative_to(self._root).as_posix() if thumb.is_file() else None
-        mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-        stat = path.stat()
+        thumb_candidate = key.rsplit("/", 1)[0] + "/_thumbs/" + filename
+        raw = self._backend.read_bytes(key)
+        thumb_key_value = thumb_candidate if self._backend.exists(thumb_candidate) else None
+        mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         return Image(
             id=image_id,
             repair_id=repair_id,
-            storage_key=rel_storage,
-            thumbnail_key=rel_thumb,
-            filename=path.name,
+            storage_key=key,
+            thumbnail_key=thumb_key_value,
+            filename=filename,
             mime_type=mime,
-            size_bytes=stat.st_size,
+            size_bytes=len(raw),
             source=ImageSource.MANUAL,
-            uploaded_at=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
+            uploaded_at=datetime.now(UTC),
             captured_at=None,
         )

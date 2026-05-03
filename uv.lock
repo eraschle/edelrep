@@ -85,6 +85,7 @@ name = "edelrep"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "fsspec" },
     { name = "python-ulid" },
 ]
 
@@ -98,7 +99,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "python-ulid", specifier = ">=3.0.0" }]
+requires-dist = [
+    { name = "fsspec", specifier = ">=2024.0.0" },
+    { name = "python-ulid", specifier = ">=3.0.0" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -107,6 +111,15 @@ dev = [
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
     { name = "ruff", specifier = ">=0.8.0" },
+]
+
+[[package]]
+name = "fsspec"
+version = "2026.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d5/8d/1c51c094345df128ca4a990d633fe1a0ff28726c9e6b3c41ba65087bba1d/fsspec-2026.4.0.tar.gz", hash = "sha256:301d8ac70ae90ef3ad05dcf94d6c3754a097f9b5fe4667d2787aa359ec7df7e4", size = 312760, upload-time = "2026-04-29T20:42:38.635Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d5/0c/043d5e551459da400957a1395e0febbf771446ff34291afcbe3d8be2a279/fsspec-2026.4.0-py3-none-any.whl", hash = "sha256:11ef7bb35dab8a394fde6e608221d5cf3e8499401c249bebaeaad760a1a8dec2", size = 203402, upload-time = "2026-04-29T20:42:36.842Z" },
 ]
 
 [[package]]

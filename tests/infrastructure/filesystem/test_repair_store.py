@@ -1,5 +1,4 @@
 from datetime import UTC, date, datetime
-from pathlib import Path
 
 import pytest
 from ulid import ULID
@@ -10,35 +9,35 @@ from edelrep.domain.exceptions import (
     RepairNotFound,
     VehicleNotFound,
 )
-from edelrep.domain.ports import RepairRepository
+from edelrep.domain.ports import RepairRepository, StorageBackend
 from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.repair_store import FilesystemRepairRepository
 from edelrep.infrastructure.filesystem.vehicle_store import FilesystemVehicleRepository
 
 
-def _seed_vehicle(root: Path, sample_vehicle: Vehicle) -> None:
-    FilesystemVehicleRepository(root).save(sample_vehicle)
+def _seed_vehicle(backend: StorageBackend, sample_vehicle: Vehicle) -> None:
+    FilesystemVehicleRepository(backend).save(sample_vehicle)
 
 
-def test_save_and_get(storage_root: Path, sample_vehicle: Vehicle, sample_repair: Repair) -> None:
-    _seed_vehicle(storage_root, sample_vehicle)
-    repo = FilesystemRepairRepository(storage_root)
+def test_save_and_get(backend: StorageBackend, sample_vehicle: Vehicle, sample_repair: Repair) -> None:
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
     repo.save(sample_repair)
     fetched = repo.get(sample_repair.id)
     assert fetched == sample_repair
 
 
-def test_save_raises_when_vehicle_missing(storage_root: Path, sample_repair: Repair) -> None:
-    repo = FilesystemRepairRepository(storage_root)
+def test_save_raises_when_vehicle_missing(backend: StorageBackend, sample_repair: Repair) -> None:
+    repo = FilesystemRepairRepository(backend)
     with pytest.raises(VehicleNotFound):
         repo.save(sample_repair)
 
 
 def test_save_raises_duplicate_on_collision(
-    storage_root: Path, sample_vehicle: Vehicle, sample_repair: Repair
+    backend: StorageBackend, sample_vehicle: Vehicle, sample_repair: Repair
 ) -> None:
-    _seed_vehicle(storage_root, sample_vehicle)
-    repo = FilesystemRepairRepository(storage_root)
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
     repo.save(sample_repair)
     clash = Repair(
         id=ULID(),
@@ -51,15 +50,15 @@ def test_save_raises_duplicate_on_collision(
         repo.save(clash)
 
 
-def test_get_raises_when_missing(storage_root: Path) -> None:
-    repo = FilesystemRepairRepository(storage_root)
+def test_get_raises_when_missing(backend: StorageBackend) -> None:
+    repo = FilesystemRepairRepository(backend)
     with pytest.raises(RepairNotFound):
         repo.get(ULID())
 
 
-def test_update_existing(storage_root: Path, sample_vehicle: Vehicle, sample_repair: Repair) -> None:
-    _seed_vehicle(storage_root, sample_vehicle)
-    repo = FilesystemRepairRepository(storage_root)
+def test_update_existing(backend: StorageBackend, sample_vehicle: Vehicle, sample_repair: Repair) -> None:
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
     repo.save(sample_repair)
     updated = Repair(
         id=sample_repair.id,
@@ -72,18 +71,18 @@ def test_update_existing(storage_root: Path, sample_vehicle: Vehicle, sample_rep
     assert repo.get(sample_repair.id) == updated
 
 
-def test_update_raises_when_missing(storage_root: Path, sample_repair: Repair) -> None:
-    repo = FilesystemRepairRepository(storage_root)
+def test_update_raises_when_missing(backend: StorageBackend, sample_repair: Repair) -> None:
+    repo = FilesystemRepairRepository(backend)
     with pytest.raises(RepairNotFound):
         repo.update(sample_repair)
 
 
 def test_list_for_vehicle_orders_newest_first(
-    storage_root: Path,
+    backend: StorageBackend,
     sample_vehicle: Vehicle,
 ) -> None:
-    _seed_vehicle(storage_root, sample_vehicle)
-    repo = FilesystemRepairRepository(storage_root)
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
     older = Repair(
         id=ULID(),
         vehicle_id=sample_vehicle.id,
@@ -104,47 +103,70 @@ def test_list_for_vehicle_orders_newest_first(
     assert [r.date for r in listed] == [date(2026, 5, 1), date(2026, 1, 1)]
 
 
-def test_list_for_vehicle_returns_empty_for_unknown(storage_root: Path) -> None:
-    repo = FilesystemRepairRepository(storage_root)
+def test_list_for_vehicle_returns_empty_for_unknown(backend: StorageBackend) -> None:
+    repo = FilesystemRepairRepository(backend)
     assert list(repo.list_for_vehicle(VehicleId("99999"))) == []
 
 
-def test_list_for_vehicle_returns_empty_when_root_missing(tmp_path: Path) -> None:
-    repo = FilesystemRepairRepository(tmp_path / "nonexistent")
-    assert list(repo.list_for_vehicle(VehicleId("12345"))) == []
+def test_list_for_vehicle_empty_when_no_repairs(backend: StorageBackend, sample_vehicle: Vehicle) -> None:
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
+    assert list(repo.list_for_vehicle(sample_vehicle.id)) == []
 
 
-def test_get_returns_empty_when_root_missing(tmp_path: Path) -> None:
-    repo = FilesystemRepairRepository(tmp_path / "nonexistent")
-    with pytest.raises(RepairNotFound):
-        repo.get(ULID())
-
-
-def test_iter_sidecars_skips_invalid_vehicle_dir(
-    storage_root: Path, sample_vehicle: Vehicle, sample_repair: Repair
+def test_list_for_vehicle_skips_non_repair_keys(
+    backend: StorageBackend, sample_vehicle: Vehicle, sample_repair: Repair
 ) -> None:
-    _seed_vehicle(storage_root, sample_vehicle)
-    repo = FilesystemRepairRepository(storage_root)
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
     repo.save(sample_repair)
-    # Create a malformed vehicle-level entry that should be skipped during scans.
-    (storage_root / "with space").mkdir()
-    fetched = repo.get(sample_repair.id)
-    assert fetched == sample_repair
-
-
-def test_list_for_vehicle_skips_non_repair_dirs(
-    storage_root: Path, sample_vehicle: Vehicle, sample_repair: Repair
-) -> None:
-    _seed_vehicle(storage_root, sample_vehicle)
-    repo = FilesystemRepairRepository(storage_root)
-    repo.save(sample_repair)
-    # Add a stray file (non-dir) and a non-matching subdir under the vehicle folder.
-    (storage_root / "12345" / "stray.txt").write_text("noise", encoding="utf-8")
-    (storage_root / "12345" / "not-a-repair").mkdir()
+    backend.write_bytes("12345/stray.txt", b"noise")
     repairs = list(repo.list_for_vehicle(sample_vehicle.id))
     assert len(repairs) == 1
 
 
-def test_satisfies_protocol(storage_root: Path) -> None:
-    repo: RepairRepository = FilesystemRepairRepository(storage_root)
+def test_satisfies_protocol(backend: StorageBackend) -> None:
+    repo: RepairRepository = FilesystemRepairRepository(backend)
     assert isinstance(repo, RepairRepository)
+
+
+def test_get_filters_non_repair_keys_during_scan(
+    backend: StorageBackend, sample_vehicle: Vehicle, sample_repair: Repair
+) -> None:
+    # Seed both vehicle sidecar and stray keys; get() must skip them via is_repair_sidecar_key.
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
+    repo.save(sample_repair)
+    backend.write_bytes("12345/stray.txt", b"noise")
+    backend.write_bytes("12345/2026-04-15__bremsbelage-vorne/extra.txt", b"more noise")
+    # Should still find the repair, filtering out the noise.
+    fetched = repo.get(sample_repair.id)
+    assert fetched.id == sample_repair.id
+
+
+def test_update_filters_mismatched_id_during_scan(
+    backend: StorageBackend, sample_vehicle: Vehicle, sample_repair: Repair
+) -> None:
+    # Seed two repairs; updating the second should skip past the first (ULID mismatch branch).
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
+    repo.save(sample_repair)
+    other = Repair(
+        id=ULID(),
+        vehicle_id=sample_repair.vehicle_id,
+        date=date(2026, 6, 1),
+        description="other",
+        created_at=datetime(2026, 6, 1, 0, 0, tzinfo=UTC),
+    )
+    repo.save(other)
+    updated_other = Repair(
+        id=other.id,
+        vehicle_id=other.vehicle_id,
+        date=other.date,
+        description=other.description,
+        created_at=datetime(2026, 6, 2, 9, 0, tzinfo=UTC),
+    )
+    repo.update(updated_other)
+    assert repo.get(other.id) == updated_other
+    # The first repair must remain unchanged.
+    assert repo.get(sample_repair.id).created_at == sample_repair.created_at
