@@ -1,4 +1,5 @@
 import time
+from collections.abc import Iterator
 
 import pytest
 
@@ -10,24 +11,27 @@ VEHICLE_COUNT = 1000
 
 
 @pytest.fixture
-def populated_index() -> SqliteSearchIndex:
+def populated_index() -> Iterator[SqliteSearchIndex]:
     conn = open_index_database(":memory:")
-    rows = [
-        (
-            f"VEH{i:05d}",
-            f"VIN-{i:08d}",
-            f"Description for vehicle number {i}",
-            "2026-01-01T00:00:00+00:00",
+    try:
+        rows = [
+            (
+                f"VEH{i:05d}",
+                f"VIN-{i:08d}",
+                f"Description for vehicle number {i}",
+                "2026-01-01T00:00:00+00:00",
+            )
+            for i in range(VEHICLE_COUNT)
+        ]
+        conn.execute("BEGIN")
+        conn.executemany(
+            "INSERT INTO vehicles (registration_number, vin, description, created_at, fs_mtime) VALUES (?, ?, ?, ?, NULL)",
+            rows,
         )
-        for i in range(VEHICLE_COUNT)
-    ]
-    conn.execute("BEGIN")
-    conn.executemany(
-        "INSERT INTO vehicles (registration_number, vin, description, created_at, fs_mtime) VALUES (?, ?, ?, ?, NULL)",
-        rows,
-    )
-    conn.execute("COMMIT")
-    return SqliteSearchIndex(conn)
+        conn.execute("COMMIT")
+        yield SqliteSearchIndex(conn)
+    finally:
+        conn.close()
 
 
 def test_search_under_threshold_for_1000_vehicles(populated_index: SqliteSearchIndex) -> None:

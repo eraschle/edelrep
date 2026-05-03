@@ -104,3 +104,12 @@ def test_search_handles_special_characters(conn: sqlite3.Connection) -> None:
     # Hyphen in query should not raise; results may be empty or include the row.
     results = list(idx.search_vehicles("brake-pads"))
     assert isinstance(results, list)
+
+
+def test_search_falls_back_to_like_for_fts5_reserved_words(conn: sqlite3.Connection) -> None:
+    idx = SqliteSearchIndex(conn)
+    idx.upsert_vehicle(_v("12345"))
+    # "OR" is an FTS5 reserved word — the query "OR*" raises sqlite3.OperationalError.
+    # The fallback should not raise.
+    results = list(idx.search_vehicles("OR"))
+    assert isinstance(results, list)
