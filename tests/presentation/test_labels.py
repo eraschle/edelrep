@@ -23,6 +23,7 @@ def test_repair_labels_match_plan() -> None:
 
 def test_image_labels_match_plan() -> None:
     assert IMAGE_FIELDS["uploaded_at"] == "Hochgeladen am"
+    assert IMAGE_FIELDS["captured_at"] == "Aufgenommen am"
 
 
 def test_image_source_labels_match_plan() -> None:
