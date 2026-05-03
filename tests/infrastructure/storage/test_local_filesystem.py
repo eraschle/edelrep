@@ -129,3 +129,8 @@ def test_list_prefix_without_trailing_slash(backend: LocalFilesystemBackend) -> 
     # Prefix "a" without trailing slash should still match "a/..." keys.
     listed = sorted(backend.list_prefix("a"))
     assert listed == ["a/b.txt", "a/c.txt"]
+
+
+def test_list_prefix_returns_empty_when_prefix_missing(backend: LocalFilesystemBackend) -> None:
+    backend.write_bytes("a/b.txt", b"")
+    assert list(backend.list_prefix("never_existed/")) == []

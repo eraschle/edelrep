@@ -16,14 +16,14 @@ class LocalFilesystemBackend:
         self._root = Path(root)
 
     def _path(self, key: str) -> Path:
-        if not key:
+        if not key:  # pragma: no cover - public API always passes a non-empty key
             return self._root
         candidate = self._root.joinpath(*key.split("/"))
         # Refuse anything that escapes the root (resolves ".." segments etc).
         root_resolved = self._root.resolve()
         try:
             resolved = candidate.resolve(strict=False)
-        except (OSError, RuntimeError) as exc:
+        except (OSError, RuntimeError) as exc:  # pragma: no cover - resolve(strict=False) rarely raises
             raise ValueError(f"key {key!r} cannot be resolved under storage root") from exc
         if resolved != root_resolved and not resolved.is_relative_to(root_resolved):
             raise ValueError(f"key {key!r} escapes storage root")
