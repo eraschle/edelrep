@@ -30,7 +30,7 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
-"tests/**/*.py" = ["PLR2004", "ARG", "PLR0913"]
+"tests/**/*.py" = ["PLR2004", "ARG", "PLR0913", "TC003"]
 "__init__.py" = ["F401"]
 
 [lint.isort]
