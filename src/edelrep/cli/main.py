@@ -72,6 +72,12 @@ def main(argv: list[str] | None = None) -> int:
         default=8080,
         help="Port to bind (default: 8080)",
     )
+    serve.add_argument(
+        "--email-config",
+        type=Path,
+        default=None,
+        help="Path to TOML file with [email] section enabling IMAP poller",
+    )
 
     args = parser.parse_args(argv)
 
@@ -86,7 +92,13 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_watch(args.storage_root, args.index_path)
 
     if args.command == "serve":
-        return _cmd_serve(args.storage_root, args.index_path, args.host, args.port)
+        return _cmd_serve(
+            args.storage_root,
+            args.index_path,
+            args.host,
+            args.port,
+            args.email_config,
+        )
 
     parser.error(f"unknown command: {args.command}")  # pragma: no cover - argparse rejects first
     return 2  # pragma: no cover - parser.error raises SystemExit
@@ -159,16 +171,24 @@ def _cmd_serve(
     index_path: Path,
     host: str,
     port: int,
+    email_config_path: Path | None = None,
 ) -> int:  # pragma: no cover - uvicorn.run blocks indefinitely
     import uvicorn  # noqa: PLC0415
 
+    from edelrep.infrastructure.email.config import load_email_config  # noqa: PLC0415
     from edelrep.presentation.app_factory import create_app  # noqa: PLC0415
     from edelrep.presentation.container import build_container  # noqa: PLC0415
 
     storage_root.mkdir(parents=True, exist_ok=True)
     index_path.parent.mkdir(parents=True, exist_ok=True)
 
-    container = build_container(storage_root, index_path, with_live_index=True)
+    email_config = load_email_config(email_config_path) if email_config_path else None
+    container = build_container(
+        storage_root,
+        index_path,
+        with_live_index=True,
+        email_config=email_config,
+    )
     app = create_app(container)
     uvicorn.run(app, host=host, port=port)
     return 0

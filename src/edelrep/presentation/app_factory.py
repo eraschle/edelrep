@@ -16,9 +16,13 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
     container: Container = app.state.container
     if container.live_index is not None:
         container.live_index.start()
+    if container.email_poller is not None:
+        container.email_poller.start()
     try:
         yield
     finally:
+        if container.email_poller is not None:
+            container.email_poller.stop()
         if container.live_index is not None:
             container.live_index.stop()
 

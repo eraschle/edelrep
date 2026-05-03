@@ -127,3 +127,12 @@ def test_serve_subparser_accepts_required_args(capsys: pytest.CaptureFixture[str
     with pytest.raises(SystemExit) as info:
         main(["serve"])  # no required args
     assert info.value.code != 0
+
+
+def test_serve_subparser_accepts_email_config(capsys: pytest.CaptureFixture[str]) -> None:
+    """argparse should accept --email-config without erroring at parse time."""
+    with pytest.raises(SystemExit) as info:
+        main(["serve", "--help"])
+    assert info.value.code == 0
+    captured = capsys.readouterr()
+    assert "--email-config" in captured.out
