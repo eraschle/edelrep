@@ -32,14 +32,14 @@ def test_can_read_vehicle_from_fixture(working_root: Path) -> None:
 
 
 def test_can_list_repairs_from_fixture(working_root: Path) -> None:
-    repo = FilesystemRepairRepository(working_root)
+    repo = FilesystemRepairRepository(LocalFilesystemBackend(working_root))
     repairs = list(repo.list_for_vehicle(VehicleId("12345")))
     assert len(repairs) == 1
     assert repairs[0].description == "Bremsbeläge vorne"
 
 
 def test_can_list_images_from_fixture(working_root: Path) -> None:
-    repair_repo = FilesystemRepairRepository(working_root)
+    repair_repo = FilesystemRepairRepository(LocalFilesystemBackend(working_root))
     image_repo = FilesystemImageRepository(working_root)
     repair = next(iter(repair_repo.list_for_vehicle(VehicleId("12345"))))
     images = list(image_repo.list_for_repair(repair.id))

@@ -16,7 +16,7 @@ from .conftest import make_image  # type: ignore[import-not-found]
 
 def _seed(root: Path, vehicle: Vehicle, repair: Repair) -> None:
     FilesystemVehicleRepository(LocalFilesystemBackend(root)).save(vehicle)
-    FilesystemRepairRepository(root).save(repair)
+    FilesystemRepairRepository(LocalFilesystemBackend(root)).save(repair)
 
 
 def test_save_writes_image_bytes_and_thumbnail(
