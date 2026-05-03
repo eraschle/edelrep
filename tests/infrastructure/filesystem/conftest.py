@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -11,13 +10,6 @@ from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
 from edelrep.domain.ports import StorageBackend
 from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.storage import FsspecBackend, LocalFilesystemBackend
-
-
-@pytest.fixture
-def storage_root(tmp_path: Path) -> Iterator[Path]:
-    root = tmp_path / "storage"
-    root.mkdir()
-    yield root
 
 
 @pytest.fixture(params=["local", "memory"])
