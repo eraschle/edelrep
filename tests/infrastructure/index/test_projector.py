@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from ulid import ULID
 
-from edelrep.domain.entities import Repair, Vehicle
+from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
 from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem import (
     FilesystemImageRepository,
@@ -128,9 +128,7 @@ def test_remove_vehicle_individual(conn: sqlite3.Connection) -> None:
     assert cur.fetchone()[0] == 0
 
 
-def _image(repair_id: ULID, *, captured_at: datetime | None = None) -> "Image":
-    from edelrep.domain.entities import Image, ImageSource
-
+def _image(repair_id: ULID, *, captured_at: datetime | None = None) -> Image:
     return Image(
         id=ULID(),
         repair_id=repair_id,
