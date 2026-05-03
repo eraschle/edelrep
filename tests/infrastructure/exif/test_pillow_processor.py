@@ -2,7 +2,7 @@ import io
 from datetime import UTC, datetime
 
 import pytest
-from PIL import ExifTags, Image
+from PIL import ExifTags, Image, ImageOps
 
 from edelrep.infrastructure.exif.pillow_processor import (
     PillowImageProcessor,
@@ -115,8 +115,6 @@ def test_process_handles_exif_transpose_returning_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = _make_jpeg_bytes()
-    from PIL import ImageOps
-
     monkeypatch.setattr(ImageOps, "exif_transpose", lambda img: None)
     processor = PillowImageProcessor()
     result = processor.process(raw)

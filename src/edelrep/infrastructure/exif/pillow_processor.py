@@ -54,7 +54,9 @@ class PillowImageProcessor:
 
 def _encode(img: Image.Image, fmt: str, quality: int) -> bytes:
     out = io.BytesIO()
-    if fmt == "JPEG" and img.mode != "RGB":  # pragma: no cover - mode mismatch path; current callers preserve input format
+    if (
+        fmt == "JPEG" and img.mode != "RGB"
+    ):  # pragma: no cover - mode mismatch path; current callers preserve input format
         img = img.convert("RGB")
     save_kwargs: dict[str, object] = {}
     if fmt == "JPEG":
