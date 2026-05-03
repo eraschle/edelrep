@@ -9,7 +9,7 @@ _USER_TABLES = ("images", "repairs", "vehicles", "meta")
 
 def open_index_database(path: Path | str) -> sqlite3.Connection:
     """Open (and migrate if needed) a SQLite index database."""
-    conn = sqlite3.connect(path, isolation_level=None)
+    conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     if isinstance(path, Path) or path != ":memory:":

@@ -29,6 +29,11 @@ class SqliteIndexProjector:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._conn = connection
 
+    @property
+    def connection(self) -> sqlite3.Connection:
+        """The underlying SQLite connection (read-only access for collaborators)."""
+        return self._conn
+
     def full_rebuild(
         self,
         vehicle_repo: VehicleRepository,
