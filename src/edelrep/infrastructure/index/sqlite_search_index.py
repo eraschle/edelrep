@@ -1,7 +1,7 @@
 import re
 import sqlite3
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import UTC, datetime
 
 from edelrep.domain.entities import Vehicle
 from edelrep.domain.value_objects import VehicleId
@@ -83,7 +83,7 @@ class SqliteSearchIndex:
 
 def _row_to_vehicle(row: sqlite3.Row) -> Vehicle:
     created_at_raw = row["created_at"]
-    created_at: datetime = parse_aware_datetime(created_at_raw) if created_at_raw else datetime.now()
+    created_at: datetime = parse_aware_datetime(created_at_raw) if created_at_raw else datetime.now(UTC)
     return Vehicle(
         id=VehicleId(row["registration_number"]),
         vin=row["vin"],

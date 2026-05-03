@@ -40,8 +40,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "reindex":
         return _cmd_reindex(args.storage_root, args.index_path)
 
-    parser.error(f"unknown command: {args.command}")
-    return 2
+    parser.error(f"unknown command: {args.command}")  # pragma: no cover - argparse rejects first
+    return 2  # pragma: no cover - parser.error raises SystemExit
 
 
 def _cmd_reindex(storage_root: Path, index_path: Path) -> int:
@@ -71,5 +71,5 @@ def _cmd_reindex(storage_root: Path, index_path: Path) -> int:
     return 0
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover - module entry point
     raise SystemExit(main())
