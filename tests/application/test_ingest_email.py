@@ -1,12 +1,14 @@
+import io
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from pathlib import Path
+
+from PIL import Image as PILImage
 
 from edelrep.application.create_repair import CreateRepairUseCase
 from edelrep.application.create_vehicle import CreateVehicleUseCase
 from edelrep.application.ingest_email import IngestEmailUseCase, IngestStats
 from edelrep.application.upload_image import UploadImageUseCase
-from edelrep.domain.entities import Vehicle
 from edelrep.domain.ports import EmailAttachment, EmailMessage
 from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.email.inbox_store import InboxStore
@@ -19,9 +21,6 @@ from edelrep.infrastructure.filesystem import (
 )
 from edelrep.infrastructure.search.in_memory import InMemorySearchIndex
 from edelrep.infrastructure.storage import LocalFilesystemBackend
-import io
-import pytest
-from PIL import Image as PILImage
 
 
 def _jpeg() -> bytes:
@@ -45,7 +44,9 @@ class _FakeInbox:
         self.processed.append(message_id)
 
 
-def _build(tmp_path: Path) -> tuple[
+def _build(
+    tmp_path: Path,
+) -> tuple[
     LocalFilesystemBackend,
     FilesystemVehicleRepository,
     FilesystemRepairRepository,
@@ -89,7 +90,7 @@ def _msg_with_jpeg(
 
 
 def test_routes_message_to_existing_vehicle(tmp_path: Path) -> None:
-    backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
+    _backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
     create_vehicle = CreateVehicleUseCase(vrepo, InMemorySearchIndex())
     create_vehicle.execute(registration_number="12345", vin=None, description=None)
 
@@ -119,7 +120,7 @@ def test_routes_message_to_existing_vehicle(tmp_path: Path) -> None:
 
 
 def test_parks_message_with_no_stammnr(tmp_path: Path) -> None:
-    backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
+    backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
     msg = _msg_with_jpeg(subject="Hallo, Bilder anbei")
     inbox = _FakeInbox([msg])
     use_case = IngestEmailUseCase(
@@ -140,7 +141,7 @@ def test_parks_message_with_no_stammnr(tmp_path: Path) -> None:
 
 
 def test_parks_message_when_vehicle_missing(tmp_path: Path) -> None:
-    backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
+    _backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
     msg = _msg_with_jpeg(subject="Stammnr 99999 Bremsen")
     inbox = _FakeInbox([msg])
     use_case = IngestEmailUseCase(
@@ -157,7 +158,7 @@ def test_parks_message_when_vehicle_missing(tmp_path: Path) -> None:
 
 
 def test_parks_message_when_invalid_registration_number(tmp_path: Path) -> None:
-    backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
+    _backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
     # The parser will pick up "with space" if the subject matches a pattern, but
     # subject patterns require a contiguous token. Use a hash-style with invalid chars.
     msg = _msg_with_jpeg(subject="#bad/value")
@@ -179,7 +180,7 @@ def test_parks_message_when_invalid_registration_number(tmp_path: Path) -> None:
 
 
 def test_filters_oversized_attachments(tmp_path: Path) -> None:
-    backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
+    _backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
     create_vehicle = CreateVehicleUseCase(vrepo, InMemorySearchIndex())
     create_vehicle.execute(registration_number="12345", vin=None, description=None)
     big = b"\x00" * (200)
@@ -206,14 +207,13 @@ def test_filters_oversized_attachments(tmp_path: Path) -> None:
     # No images survived filter; reg matched & vehicle exists, but nothing to upload.
     assert stats.skipped == 1
     assert stats.routed == 0
-    images_for_existing = []  # no repair created since no images
     repairs = list(rrepo.list_for_vehicle(VehicleId("12345")))
     # Implementation choice: if there are no images, don't create a repair either.
     assert len(repairs) == 0
 
 
 def test_filters_non_image_attachments(tmp_path: Path) -> None:
-    backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
+    _backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
     create_vehicle = CreateVehicleUseCase(vrepo, InMemorySearchIndex())
     create_vehicle.execute(registration_number="12345", vin=None, description=None)
     msg = EmailMessage(
@@ -239,7 +239,7 @@ def test_filters_non_image_attachments(tmp_path: Path) -> None:
 
 
 def test_handles_duplicate_repair(tmp_path: Path) -> None:
-    backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
+    _backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
     create_vehicle = CreateVehicleUseCase(vrepo, InMemorySearchIndex())
     create_vehicle.execute(registration_number="12345", vin=None, description=None)
 
@@ -265,7 +265,7 @@ def test_handles_duplicate_repair(tmp_path: Path) -> None:
 
 
 def test_returns_zero_stats_when_no_messages(tmp_path: Path) -> None:
-    backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
+    _backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
     use_case = IngestEmailUseCase(
         inbox=_FakeInbox([]),
         parser=EmailSubjectParser(),

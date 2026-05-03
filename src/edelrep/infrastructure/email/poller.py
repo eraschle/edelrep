@@ -27,7 +27,7 @@ class EmailPoller:
         scheduler = BackgroundScheduler(daemon=True)
         scheduler.add_job(
             self._tick,
-            trigger=IntervalTrigger(seconds=self._interval_seconds),
+            trigger=IntervalTrigger(seconds=self._interval_seconds),  # type: ignore[arg-type]
             id="edelrep.email.poll",
             replace_existing=True,
             max_instances=1,
@@ -47,5 +47,5 @@ class EmailPoller:
     def _tick(self) -> None:
         try:
             self._use_case.execute()
-        except Exception:  # noqa: BLE001 - poller must not crash on individual run
+        except Exception:
             _logger.exception("email poll failed")

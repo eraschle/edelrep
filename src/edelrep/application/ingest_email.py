@@ -72,7 +72,8 @@ class IngestEmailUseCase:
 
     def _handle_message(self, message: EmailMessage) -> str:
         images = [
-            a for a in message.attachments
+            a
+            for a in message.attachments
             if a.mime_type.startswith("image/") and len(a.content) <= self._max_bytes
         ]
         reg = self._parser.extract_registration_number(message)
@@ -101,9 +102,7 @@ class IngestEmailUseCase:
             )
         return "routed"
 
-    def _get_or_create_repair_id(
-        self, message: EmailMessage, vehicle_id: VehicleId
-    ) -> ULID:
+    def _get_or_create_repair_id(self, message: EmailMessage, vehicle_id: VehicleId) -> ULID:
         repair_date = message.received_at.date()
         description = message.subject or "E-Mail"
         try:

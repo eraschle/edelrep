@@ -108,9 +108,7 @@ def build_container(
     if email_config is not None and email_config.enabled:
         password = os.environ.get(email_config.password_env)
         if not password:
-            raise RuntimeError(
-                f"environment variable {email_config.password_env!r} is empty or unset"
-            )
+            raise RuntimeError(f"environment variable {email_config.password_env!r} is empty or unset")
         imap_inbox = ImapInbox(
             host=email_config.host,
             user=email_config.user,

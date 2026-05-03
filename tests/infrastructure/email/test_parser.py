@@ -16,8 +16,7 @@ def _msg(
     attachments: list[str] | None = None,
 ) -> EmailMessage:
     atts = tuple(
-        EmailAttachment(filename=f, mime_type="image/jpeg", content=b"x")
-        for f in (attachments or [])
+        EmailAttachment(filename=f, mime_type="image/jpeg", content=b"x") for f in (attachments or [])
     )
     return EmailMessage(
         message_id="<x@x>",

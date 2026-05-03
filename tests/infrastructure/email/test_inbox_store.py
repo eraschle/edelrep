@@ -81,9 +81,7 @@ def test_park_handles_filename_with_slash(tmp_path: Path) -> None:
     backend = LocalFilesystemBackend(tmp_path / "store")
     store = InboxStore(backend)
     msg = _msg(
-        attachments=(
-            EmailAttachment(filename="path/with/slash.jpg", mime_type="image/jpeg", content=b"x"),
-        ),
+        attachments=(EmailAttachment(filename="path/with/slash.jpg", mime_type="image/jpeg", content=b"x"),),
     )
     slot = store.park(msg)
     keys = list(backend.list_prefix(f"{slot}/"))
@@ -95,9 +93,7 @@ def test_park_handles_empty_filename(tmp_path: Path) -> None:
     backend = LocalFilesystemBackend(tmp_path / "store")
     store = InboxStore(backend)
     msg = _msg(
-        attachments=(
-            EmailAttachment(filename="", mime_type="application/octet-stream", content=b"x"),
-        ),
+        attachments=(EmailAttachment(filename="", mime_type="application/octet-stream", content=b"x"),),
     )
     slot = store.park(msg)
     keys = list(backend.list_prefix(f"{slot}/"))
