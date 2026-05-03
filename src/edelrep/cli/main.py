@@ -47,6 +47,32 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to the SQLite index file",
     )
 
+    serve = sub.add_parser("serve", help="Run the edelrep web UI (Ctrl-C to stop)")
+    serve.add_argument(
+        "--storage-root",
+        type=Path,
+        required=True,
+        help="Root directory of the storage layout",
+    )
+    serve.add_argument(
+        "--index-path",
+        type=Path,
+        required=True,
+        help="Path to the SQLite index file",
+    )
+    serve.add_argument(
+        "--host",
+        type=str,
+        default="127.0.0.1",
+        help="Host to bind (default: 127.0.0.1)",
+    )
+    serve.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Port to bind (default: 8080)",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -58,6 +84,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "watch":
         return _cmd_watch(args.storage_root, args.index_path)
+
+    if args.command == "serve":
+        return _cmd_serve(args.storage_root, args.index_path, args.host, args.port)
 
     parser.error(f"unknown command: {args.command}")  # pragma: no cover - argparse rejects first
     return 2  # pragma: no cover - parser.error raises SystemExit
@@ -122,6 +151,26 @@ def _cmd_watch(
     finally:
         live.stop()
         conn.close()
+    return 0
+
+
+def _cmd_serve(
+    storage_root: Path,
+    index_path: Path,
+    host: str,
+    port: int,
+) -> int:  # pragma: no cover - uvicorn.run blocks indefinitely
+    import uvicorn  # noqa: PLC0415
+
+    from edelrep.presentation.app_factory import create_app  # noqa: PLC0415
+    from edelrep.presentation.container import build_container  # noqa: PLC0415
+
+    storage_root.mkdir(parents=True, exist_ok=True)
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+
+    container = build_container(storage_root, index_path, with_live_index=True)
+    app = create_app(container)
+    uvicorn.run(app, host=host, port=port)
     return 0
 
 

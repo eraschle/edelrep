@@ -114,3 +114,16 @@ def test_watch_prints_drift_warning_when_drifted(tmp_path: Path, capsys: pytest.
     assert code == 0
     captured = capsys.readouterr()
     assert "drifted" in captured.out
+
+
+def test_serve_help_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as info:
+        main(["serve", "--help"])
+    assert info.value.code == 0
+
+
+def test_serve_subparser_accepts_required_args(capsys: pytest.CaptureFixture[str]) -> None:
+    """argparse should require --storage-root and --index-path."""
+    with pytest.raises(SystemExit) as info:
+        main(["serve"])  # no required args
+    assert info.value.code != 0
