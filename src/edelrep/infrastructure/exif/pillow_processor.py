@@ -1,8 +1,11 @@
 import io
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from PIL import ExifTags, Image, ImageOps, UnidentifiedImageError
+
+from edelrep.application.upload_image import ProcessedImage
+
+__all__ = ["PillowImageProcessor", "ProcessedImage"]
 
 _THUMBNAIL_MAX_SIZE = (256, 256)
 _JPEG_QUALITY = 95
@@ -15,14 +18,6 @@ _MIME_BY_PIL_FORMAT = {
     "WEBP": "image/webp",
     "GIF": "image/gif",
 }
-
-
-@dataclass(frozen=True, slots=True)
-class ProcessedImage:
-    rotated_bytes: bytes
-    thumbnail_bytes: bytes
-    captured_at: datetime | None
-    mime_type: str
 
 
 class PillowImageProcessor:
