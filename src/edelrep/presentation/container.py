@@ -1,9 +1,11 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 from edelrep.application.create_repair import CreateRepairUseCase
 from edelrep.application.create_vehicle import CreateVehicleUseCase
 from edelrep.application.get_image import GetImageUseCase
+from edelrep.application.ingest_email import IngestEmailUseCase
 from edelrep.application.list_repairs import ListRepairsUseCase
 from edelrep.application.search_vehicle import SearchVehicleUseCase
 from edelrep.application.upload_image import UploadImageUseCase
@@ -14,6 +16,11 @@ from edelrep.domain.ports import (
     StorageBackend,
     VehicleRepository,
 )
+from edelrep.infrastructure.email.config import EmailConfig
+from edelrep.infrastructure.email.imap_adapter import ImapInbox
+from edelrep.infrastructure.email.inbox_store import InboxStore
+from edelrep.infrastructure.email.parser import EmailSubjectParser
+from edelrep.infrastructure.email.poller import EmailPoller
 from edelrep.infrastructure.exif.pillow_processor import PillowImageProcessor
 from edelrep.infrastructure.filesystem import (
     FilesystemImageRepository,
@@ -46,6 +53,7 @@ class Container:
     get_image: GetImageUseCase
     search_vehicle: SearchVehicleUseCase
     live_index: LiveIndex | None = None
+    email_poller: EmailPoller | None = None
 
 
 def build_container(
@@ -54,6 +62,7 @@ def build_container(
     *,
     with_live_index: bool = True,
     debounce_seconds: float = 0.3,
+    email_config: EmailConfig | None = None,
 ) -> Container:
     """Wire a full Container against the local filesystem and SQLite."""
     storage_root.mkdir(parents=True, exist_ok=True)
@@ -94,6 +103,31 @@ def build_container(
             repair_repo=repair_repo,
             image_repo=image_repo,
             debounce_seconds=debounce_seconds,
+        )
+
+    if email_config is not None and email_config.enabled:
+        password = os.environ.get(email_config.password_env)
+        if not password:
+            raise RuntimeError(f"environment variable {email_config.password_env!r} is empty or unset")
+        imap_inbox = ImapInbox(
+            host=email_config.host,
+            user=email_config.user,
+            password=password,
+            folder=email_config.folder,
+        )
+        ingest_use_case = IngestEmailUseCase(
+            inbox=imap_inbox,
+            parser=EmailSubjectParser(),
+            vehicle_repo=vehicle_repo,
+            repair_repo=repair_repo,
+            create_repair=container.create_repair,
+            upload_image=container.upload_image,
+            inbox_store=InboxStore(backend),
+            max_attachment_bytes=email_config.max_attachment_mb * 1024 * 1024,
+        )
+        container.email_poller = EmailPoller(
+            use_case=ingest_use_case,
+            interval_seconds=float(email_config.poll_interval_seconds),
         )
 
     return container
