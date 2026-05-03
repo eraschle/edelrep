@@ -109,3 +109,32 @@ def test_process_rejects_non_image_bytes() -> None:
     processor = PillowImageProcessor()
     with pytest.raises(ValueError, match="image"):
         processor.process(b"not an image at all")
+
+
+def test_process_handles_exif_transpose_returning_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _make_jpeg_bytes()
+    from PIL import ImageOps
+
+    monkeypatch.setattr(ImageOps, "exif_transpose", lambda img: None)
+    processor = PillowImageProcessor()
+    result = processor.process(raw)
+    assert len(result.rotated_bytes) > 0
+    # Falls through to src.copy() — no rotation applied.
+
+
+def test_process_decodes_bytes_capture_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    raw = _make_jpeg_bytes(capture_time="2026:05:03 14:30:00")
+    real_get = Image.Exif.get
+
+    def get_as_bytes(self, key, default=None):
+        value = real_get(self, key, default)
+        if key == ExifTags.Base.DateTimeOriginal.value and isinstance(value, str):
+            return value.encode("ascii")
+        return value
+
+    monkeypatch.setattr(Image.Exif, "get", get_as_bytes)
+    processor = PillowImageProcessor()
+    result = processor.process(raw)
+    assert result.captured_at == datetime(2026, 5, 3, 14, 30, 0, tzinfo=UTC)

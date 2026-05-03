@@ -54,7 +54,7 @@ class PillowImageProcessor:
 
 def _encode(img: Image.Image, fmt: str, quality: int) -> bytes:
     out = io.BytesIO()
-    if fmt == "JPEG" and img.mode != "RGB":
+    if fmt == "JPEG" and img.mode != "RGB":  # pragma: no cover - mode mismatch path; current callers preserve input format
         img = img.convert("RGB")
     save_kwargs: dict[str, object] = {}
     if fmt == "JPEG":
@@ -66,7 +66,7 @@ def _encode(img: Image.Image, fmt: str, quality: int) -> bytes:
 def _extract_capture_time(img: Image.Image) -> datetime | None:
     try:
         exif = img.getexif()
-    except (AttributeError, KeyError, OSError):
+    except (AttributeError, KeyError, OSError):  # pragma: no cover - defensive; getexif rarely raises
         return None
     if not exif:
         return None
