@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ parked.subject }} – Posteingang{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-2">{{ parked.subject }}</h1>
+<p class="text-sm text-slate-600 mb-4">
+  Eingegangen am: <span class="font-mono">{{ parked.received_at.isoformat() }}</span><br>
+  Absender: <span class="font-mono">{{ parked.from_address }}</span><br>
+  Status: {{ parked.status }}
+</p>
+<div class="my-4">
+  <a href="/inbox" class="text-sm text-blue-600 hover:underline">← zurück zum Posteingang</a>
+</div>
+
+<h2 class="text-xl font-semibold mb-3">Anhänge</h2>
+{% if attachments %}
+<div class="grid grid-cols-2 gap-3">
+{% for att in attachments %}
+  <div class="bg-white border rounded p-3">
+    <a href="/inbox/{{ slot_basename }}/attachments/{{ att.filename }}" target="_blank">
+      <div class="font-mono text-sm break-all">{{ att.filename }}</div>
+    </a>
+  </div>
+{% endfor %}
+</div>
+{% else %}
+<p class="text-slate-500">Keine Anhänge.</p>
+{% endif %}
+{% endblock %}

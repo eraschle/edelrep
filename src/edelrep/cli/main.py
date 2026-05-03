@@ -79,6 +79,22 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to TOML file with [email] section enabling IMAP poller",
     )
 
+    migrate = sub.add_parser("migrate-storage", help="Copy storage tree to a new location and verify counts")
+    migrate.add_argument(
+        "--from",
+        dest="source_root",
+        type=Path,
+        required=True,
+        help="Source storage root",
+    )
+    migrate.add_argument(
+        "--to",
+        dest="target_root",
+        type=Path,
+        required=True,
+        help="Target storage root (must not exist or be empty)",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -99,6 +115,9 @@ def main(argv: list[str] | None = None) -> int:
             args.port,
             args.email_config,
         )
+
+    if args.command == "migrate-storage":
+        return _cmd_migrate_storage(args.source_root, args.target_root)
 
     parser.error(f"unknown command: {args.command}")  # pragma: no cover - argparse rejects first
     return 2  # pragma: no cover - parser.error raises SystemExit
@@ -191,6 +210,24 @@ def _cmd_serve(
     )
     app = create_app(container)
     uvicorn.run(app, host=host, port=port)
+    return 0
+
+
+def _cmd_migrate_storage(source_root: Path, target_root: Path) -> int:
+    from edelrep.application.migrate_storage import MigrateStorageUseCase  # noqa: PLC0415
+
+    try:
+        stats = MigrateStorageUseCase().execute(
+            source_root=source_root,
+            target_root=target_root,
+        )
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 1
+    sys.stdout.write(
+        f"migration complete: files_copied={stats.files_copied} "
+        f"bytes_copied={stats.bytes_copied} duration={stats.duration_seconds:.3f}s\n"
+    )
     return 0
 
 

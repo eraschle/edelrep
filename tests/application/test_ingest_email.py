@@ -2,6 +2,7 @@ import io
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from PIL import Image as PILImage
 
@@ -277,3 +278,61 @@ def test_returns_zero_stats_when_no_messages(tmp_path: Path) -> None:
     )
     stats = use_case.execute()
     assert stats == IngestStats(fetched=0, routed=0, parked=0, skipped=0)
+
+
+def test_parks_message_when_parser_returns_invalid_registration(tmp_path: Path) -> None:
+    """Parser returning a string that fails VehicleId validation → park the message."""
+    _backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
+    msg = _msg_with_jpeg(subject="irrelevant")
+
+    # Mock parser to return a string with a space, which is invalid for VehicleId.
+    mock_parser = MagicMock(spec=EmailSubjectParser)
+    mock_parser.extract_registration_number.return_value = "has space"
+
+    inbox = _FakeInbox([msg])
+    use_case = IngestEmailUseCase(
+        inbox=inbox,
+        parser=mock_parser,
+        vehicle_repo=vrepo,
+        repair_repo=rrepo,
+        create_repair=cr,
+        upload_image=ui,
+        inbox_store=store,
+    )
+    stats = use_case.execute()
+    assert stats.parked == 1
+    assert stats.routed == 0
+
+
+def test_duplicate_repair_fallback_skips_non_matching_repairs(tmp_path: Path) -> None:
+    """DuplicateRepair fallback scans past non-matching repairs before finding the match."""
+    _backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
+    create_vehicle = CreateVehicleUseCase(vrepo, InMemorySearchIndex())
+    create_vehicle.execute(registration_number="12345", vin=None, description=None)
+
+    # Create a decoy repair with a newer date so it sorts first in list_for_vehicle.
+    cr.execute(
+        vehicle_id=VehicleId("12345"),
+        repair_date=datetime(2026, 5, 10, tzinfo=UTC).date(),
+        description="Ölwechsel",
+    )
+
+    # Now ingest two messages with the same subject (same date/description) to trigger
+    # DuplicateRepair on the second; the decoy repair (newer date) will be iterated
+    # first (no match), then the target repair is found (covers the 118->117 branch).
+    msg1 = _msg_with_jpeg(msg_id="<d1@x>", subject="Stammnr 12345 Bremsen")
+    msg2 = _msg_with_jpeg(msg_id="<d2@x>", subject="Stammnr 12345 Bremsen")
+    inbox = _FakeInbox([msg1, msg2])
+    use_case = IngestEmailUseCase(
+        inbox=inbox,
+        parser=EmailSubjectParser(),
+        vehicle_repo=vrepo,
+        repair_repo=rrepo,
+        create_repair=cr,
+        upload_image=ui,
+        inbox_store=store,
+    )
+    stats = use_case.execute()
+    assert stats.routed == 2
+    repairs = list(rrepo.list_for_vehicle(VehicleId("12345")))
+    assert len(repairs) == 2  # decoy + target

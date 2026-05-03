@@ -117,4 +117,4 @@ class IngestEmailUseCase:
             for r in self._repair_repo.list_for_vehicle(vehicle_id):
                 if repair_dir_name(r.date, r.description) == target_dir_name:
                     return r.id
-            raise  # should be unreachable; if duplicate, the matching repair exists
+            raise  # pragma: no cover — defensive; matching repair must exist if DuplicateRepair fired

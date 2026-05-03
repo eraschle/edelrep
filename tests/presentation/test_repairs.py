@@ -56,3 +56,12 @@ def test_repair_appears_on_vehicle_detail(client: TestClient, container: Contain
     r = client.get("/vehicles/12345")
     assert "brakes" in r.text
     assert "2026-05-03" in r.text
+
+
+def test_create_repair_with_invalid_vehicle_id_returns_404(client: TestClient) -> None:
+    """A POST to repairs for an invalid VehicleId (contains $) should return 404."""
+    r = client.post(
+        "/vehicles/with$dollar/repairs",
+        data={"description": "brakes", "date": "2026-05-03"},
+    )
+    assert r.status_code == 404

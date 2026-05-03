@@ -18,6 +18,7 @@ from edelrep.domain.ports import (
 )
 from edelrep.infrastructure.email.config import EmailConfig
 from edelrep.infrastructure.email.imap_adapter import ImapInbox
+from edelrep.infrastructure.email.inbox_reader import InboxReader
 from edelrep.infrastructure.email.inbox_store import InboxStore
 from edelrep.infrastructure.email.parser import EmailSubjectParser
 from edelrep.infrastructure.email.poller import EmailPoller
@@ -52,6 +53,7 @@ class Container:
     list_repairs: ListRepairsUseCase
     get_image: GetImageUseCase
     search_vehicle: SearchVehicleUseCase
+    inbox_reader: InboxReader
     live_index: LiveIndex | None = None
     email_poller: EmailPoller | None = None
 
@@ -80,6 +82,8 @@ def build_container(
 
     processor = PillowImageProcessor()
 
+    inbox_reader = InboxReader(backend)
+
     container = Container(
         backend=backend,
         vehicle_repo=vehicle_repo,
@@ -93,6 +97,7 @@ def build_container(
         list_repairs=ListRepairsUseCase(vehicle_repo, repair_repo),
         get_image=GetImageUseCase(image_repo, backend),
         search_vehicle=SearchVehicleUseCase(search_index),
+        inbox_reader=inbox_reader,
     )
 
     if with_live_index:

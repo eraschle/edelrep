@@ -136,3 +136,30 @@ def test_serve_subparser_accepts_email_config(capsys: pytest.CaptureFixture[str]
     assert info.value.code == 0
     captured = capsys.readouterr()
     assert "--email-config" in captured.out
+
+
+def test_migrate_storage_help_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as info:
+        main(["migrate-storage", "--help"])
+    assert info.value.code == 0
+
+
+def test_migrate_storage_copies_tree(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "12345").mkdir()
+    (src / "12345" / "_vehicle.json").write_text("{}", encoding="utf-8")
+    dst = tmp_path / "dst"
+    code = main(["migrate-storage", "--from", str(src), "--to", str(dst)])
+    assert code == 0
+    captured = capsys.readouterr()
+    assert "files_copied=1" in captured.out
+
+
+def test_migrate_storage_returns_1_on_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    src = tmp_path / "missing"
+    dst = tmp_path / "dst"
+    code = main(["migrate-storage", "--from", str(src), "--to", str(dst)])
+    assert code == 1
+    captured = capsys.readouterr()
+    assert "error:" in captured.err

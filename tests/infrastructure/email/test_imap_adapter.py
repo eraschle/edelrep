@@ -127,3 +127,20 @@ def test_mark_processed_handles_missing_message_gracefully() -> None:
         inbox.mark_processed("<unknown@x>")
     # Should not crash; no flag call.
     box.flag.assert_not_called()
+
+
+def test_fetch_unread_handles_invalid_date_object() -> None:
+    """If raw.date.astimezone(UTC) raises (e.g. naive datetime), fall back to now()."""
+    msg = _mock_mailmessage()
+
+    class _BadDate:
+        def astimezone(self, tz):  # type: ignore[no-untyped-def]
+            raise ValueError("naive datetime")
+
+    msg.date = _BadDate()
+    box, _ = _mock_mailbox_context([msg])
+    with patch("edelrep.infrastructure.email.imap_adapter.MailBox") as mock_mailbox:
+        mock_mailbox.return_value = box
+        inbox = ImapInbox(host="h", user="u", password="p")
+        results = inbox.fetch_unread(limit=10)
+    assert results[0].received_at.tzinfo is not None

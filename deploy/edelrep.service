@@ -1,0 +1,23 @@
+[Unit]
+Description=edelrep — Fahrzeug-Reparatur-Verwaltung
+After=network.target
+
+[Service]
+Type=simple
+User=edelrep
+Group=edelrep
+WorkingDirectory=/var/lib/edelrep
+ExecStart=/usr/local/bin/edelrep serve \
+  --storage-root /var/lib/edelrep/data \
+  --index-path /var/lib/edelrep/index.db \
+  --host 127.0.0.1 \
+  --port 8080
+Restart=on-failure
+RestartSec=5
+
+# Optional: Email-Konfiguration
+# EnvironmentFile=/etc/edelrep/email.env
+# ExecStart=... --email-config /etc/edelrep/email.toml
+
+[Install]
+WantedBy=multi-user.target
