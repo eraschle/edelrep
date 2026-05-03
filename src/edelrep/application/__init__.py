@@ -1,6 +1,7 @@
 from edelrep.application.create_repair import CreateRepairUseCase
 from edelrep.application.create_vehicle import CreateVehicleUseCase
 from edelrep.application.get_image import GetImageUseCase
+from edelrep.application.ingest_email import IngestEmailUseCase, IngestStats
 from edelrep.application.list_repairs import ListRepairsUseCase
 from edelrep.application.reindex import ReindexUseCase
 from edelrep.application.search_vehicle import SearchVehicleUseCase
@@ -16,6 +17,8 @@ __all__ = [
     "CreateVehicleUseCase",
     "GetImageUseCase",
     "ImageProcessor",
+    "IngestEmailUseCase",
+    "IngestStats",
     "ListRepairsUseCase",
     "ProcessedImage",
     "ReindexStats",
