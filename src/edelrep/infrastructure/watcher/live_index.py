@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -19,6 +20,8 @@ from edelrep.infrastructure.watcher.key_mapper import EntityKind, classify
 
 if TYPE_CHECKING:
     from watchdog.observers.api import BaseObserver
+
+_logger = logging.getLogger(__name__)
 
 
 class LiveIndex:
@@ -45,7 +48,7 @@ class LiveIndex:
         self._handler = KeyEventHandler(storage_root, self._debouncer)
         self._observer: BaseObserver | None = None
         self._drift_detected = False
-        self._drift_detector = DriftDetector(projector._conn, storage_root)  # type: ignore[attr-defined]
+        self._drift_detector = DriftDetector(projector.connection, storage_root)
 
     @property
     def drift_detected(self) -> bool:
@@ -83,6 +86,7 @@ class LiveIndex:
                 elif kind is EntityKind.IMAGE:
                     self._handle_image(key)
             except Exception:  # watcher must not crash on individual key
+                _logger.exception("watcher: failed to apply key %r", key)
                 continue
 
     def _handle_vehicle(self, key: str) -> None:
