@@ -128,3 +128,45 @@ def test_list_for_vehicle_skips_non_repair_keys(
 def test_satisfies_protocol(backend: StorageBackend) -> None:
     repo: RepairRepository = FilesystemRepairRepository(backend)
     assert isinstance(repo, RepairRepository)
+
+
+def test_get_filters_non_repair_keys_during_scan(
+    backend: StorageBackend, sample_vehicle: Vehicle, sample_repair: Repair
+) -> None:
+    # Seed both vehicle sidecar and stray keys; get() must skip them via is_repair_sidecar_key.
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
+    repo.save(sample_repair)
+    backend.write_bytes("12345/stray.txt", b"noise")
+    backend.write_bytes("12345/2026-04-15__bremsbelage-vorne/extra.txt", b"more noise")
+    # Should still find the repair, filtering out the noise.
+    fetched = repo.get(sample_repair.id)
+    assert fetched.id == sample_repair.id
+
+
+def test_update_filters_mismatched_id_during_scan(
+    backend: StorageBackend, sample_vehicle: Vehicle, sample_repair: Repair
+) -> None:
+    # Seed two repairs; updating the second should skip past the first (ULID mismatch branch).
+    _seed_vehicle(backend, sample_vehicle)
+    repo = FilesystemRepairRepository(backend)
+    repo.save(sample_repair)
+    other = Repair(
+        id=ULID(),
+        vehicle_id=sample_repair.vehicle_id,
+        date=date(2026, 6, 1),
+        description="other",
+        created_at=datetime(2026, 6, 1, 0, 0, tzinfo=UTC),
+    )
+    repo.save(other)
+    updated_other = Repair(
+        id=other.id,
+        vehicle_id=other.vehicle_id,
+        date=other.date,
+        description=other.description,
+        created_at=datetime(2026, 6, 2, 9, 0, tzinfo=UTC),
+    )
+    repo.update(updated_other)
+    assert repo.get(other.id) == updated_other
+    # The first repair must remain unchanged.
+    assert repo.get(sample_repair.id).created_at == sample_repair.created_at

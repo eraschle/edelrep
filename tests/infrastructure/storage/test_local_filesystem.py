@@ -120,3 +120,12 @@ def test_dot_segments_within_root_allowed(backend: LocalFilesystemBackend) -> No
     backend.write_bytes("a/b/c.txt", b"x")
     backend.write_bytes("a/b/../d.txt", b"y")
     assert backend.read_bytes("a/d.txt") == b"y"
+
+
+def test_list_prefix_without_trailing_slash(backend: LocalFilesystemBackend) -> None:
+    backend.write_bytes("a/b.txt", b"")
+    backend.write_bytes("a/c.txt", b"")
+    backend.write_bytes("z.txt", b"")
+    # Prefix "a" without trailing slash should still match "a/..." keys.
+    listed = sorted(backend.list_prefix("a"))
+    assert listed == ["a/b.txt", "a/c.txt"]
