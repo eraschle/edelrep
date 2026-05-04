@@ -98,8 +98,8 @@
         return 'duplicate';
       }
       const id = nextId++;
-      const el = renderEntry(file, id);
-      entries.push({ id, file, status: 'pending', el,
+      const { li: el, thumbUrl } = renderEntry(file, id);
+      entries.push({ id, file, status: 'pending', el, thumbUrl,
                      statusEl: el.querySelector('[data-entry-status]'),
                      retryBtn: el.querySelector('[data-entry-retry]') });
       return 'ok';
@@ -108,21 +108,24 @@
     function renderEntry(file, id) {
       const li = tpl.content.firstElementChild.cloneNode(true);
       li.dataset.entryId = String(id);
-      li.querySelector('[data-entry-thumb]').src = URL.createObjectURL(file);
+      const thumbUrl = URL.createObjectURL(file);
+      li.querySelector('[data-entry-thumb]').src = thumbUrl;
       li.querySelector('[data-entry-filename]').textContent = file.name;
       li.querySelector('[data-entry-meta]').textContent = formatBytes(file.size);
       li.querySelector('[data-entry-status]').textContent = '🕐 wartet';
       li.querySelector('[data-entry-remove]').addEventListener('click', () => removeEntry(id));
       list.appendChild(li);
-      return li;
+      return { li, thumbUrl };
     }
 
     function renderInvalidEntry(file, message) {
       const li = tpl.content.firstElementChild.cloneNode(true);
       li.querySelector('[data-entry-thumb]').alt = '';
       const thumb = li.querySelector('[data-entry-thumb]');
+      let invalidThumbUrl = null;
       if (file.type.startsWith('image/')) {
-        thumb.src = URL.createObjectURL(file);
+        invalidThumbUrl = URL.createObjectURL(file);
+        thumb.src = invalidThumbUrl;
       } else {
         thumb.classList.add('opacity-30');
       }
@@ -131,13 +134,17 @@
       const statusEl = li.querySelector('[data-entry-status]');
       statusEl.textContent = `❌ ${message}`;
       statusEl.classList.add('text-red-600');
-      li.querySelector('[data-entry-remove]').addEventListener('click', () => li.remove());
+      li.querySelector('[data-entry-remove]').addEventListener('click', () => {
+        if (invalidThumbUrl) URL.revokeObjectURL(invalidThumbUrl);
+        li.remove();
+      });
       list.appendChild(li);
     }
 
     function removeEntry(id) {
       const idx = entries.findIndex(e => e.id === id);
       if (idx === -1) return;
+      URL.revokeObjectURL(entries[idx].thumbUrl);
       entries[idx].el.remove();
       entries.splice(idx, 1);
       emitChange();
@@ -176,6 +183,7 @@
           pending:   { text: '🕐 wartet', cls: 'text-slate-600' },
         };
         const m = map[status];
+        if (!m) return;
         e.statusEl.textContent = m.text;
         e.statusEl.className = 'text-xs ' + m.cls;
         e.retryBtn.hidden = (status !== 'error');
@@ -183,7 +191,7 @@
       onRetry(id, handler) {
         const e = entries.find(x => x.id === id);
         if (!e) return;
-        e.retryBtn.addEventListener('click', () => handler(e));
+        e.retryBtn.onclick = () => handler(e);
       },
     };
   }
