@@ -40,3 +40,6 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .pyright/
+
+# Local sample/test data — not part of the repo
+example data/
