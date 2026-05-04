@@ -1,4 +1,5 @@
 import sqlite3
+import threading
 from datetime import UTC, date, datetime
 
 import pytest
@@ -17,16 +18,17 @@ from .fakes import InMemoryImageRepo, InMemoryRepairRepo, InMemoryVehicleRepo
 
 
 @pytest.fixture
-def conn() -> sqlite3.Connection:
+def conn() -> tuple[sqlite3.Connection, threading.RLock]:
     return open_index_database(":memory:")
 
 
 def test_reindex_returns_stats(
-    conn: sqlite3.Connection,
+    conn: tuple[sqlite3.Connection, threading.RLock],
     vehicle_repo: InMemoryVehicleRepo,
     repair_repo: InMemoryRepairRepo,
     image_repo: InMemoryImageRepo,
 ) -> None:
+    connection, lock = conn
     vehicle = Vehicle(
         id=VehicleId("12345"),
         vin="X",
@@ -43,7 +45,7 @@ def test_reindex_returns_stats(
             created_at=datetime(2026, 5, 1, tzinfo=UTC),
         )
     )
-    projector = SqliteIndexProjector(conn)
+    projector = SqliteIndexProjector(connection, lock)
     use_case = ReindexUseCase(projector, vehicle_repo, repair_repo, image_repo)
     stats = use_case.execute()
     assert isinstance(stats, ReindexStats)
@@ -52,12 +54,13 @@ def test_reindex_returns_stats(
 
 
 def test_reindex_empty_storage(
-    conn: sqlite3.Connection,
+    conn: tuple[sqlite3.Connection, threading.RLock],
     vehicle_repo: InMemoryVehicleRepo,
     repair_repo: InMemoryRepairRepo,
     image_repo: InMemoryImageRepo,
 ) -> None:
-    projector = SqliteIndexProjector(conn)
+    connection, lock = conn
+    projector = SqliteIndexProjector(connection, lock)
     use_case = ReindexUseCase(projector, vehicle_repo, repair_repo, image_repo)
     stats = use_case.execute()
     assert stats.vehicles_indexed == 0

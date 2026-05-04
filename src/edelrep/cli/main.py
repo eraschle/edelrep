@@ -132,9 +132,9 @@ def _cmd_reindex(storage_root: Path, index_path: Path) -> int:
     rrepo = FilesystemRepairRepository(backend)
     irepo = FilesystemImageRepository(backend)
 
-    conn = open_index_database(index_path)
+    conn, lock = open_index_database(index_path)
     try:
-        projector = SqliteIndexProjector(conn)
+        projector = SqliteIndexProjector(conn, lock)
         use_case = ReindexUseCase(projector, vrepo, rrepo, irepo)
         stats = use_case.execute()
     finally:
@@ -163,9 +163,9 @@ def _cmd_watch(
     vrepo = FilesystemVehicleRepository(backend)
     rrepo = FilesystemRepairRepository(backend)
     irepo = FilesystemImageRepository(backend)
-    conn = open_index_database(index_path)
+    conn, lock = open_index_database(index_path)
 
-    projector = SqliteIndexProjector(conn)
+    projector = SqliteIndexProjector(conn, lock)
     live = LiveIndex(storage_root, projector, vrepo, rrepo, irepo)
 
     live.start()

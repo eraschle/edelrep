@@ -1,4 +1,5 @@
 import sqlite3
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -12,8 +13,9 @@ class DriftDetector:
     sidecar is newer.
     """
 
-    def __init__(self, connection: sqlite3.Connection, storage_root: Path) -> None:
+    def __init__(self, connection: sqlite3.Connection, lock: threading.RLock, storage_root: Path) -> None:
         self._conn = connection
+        self._lock = lock
         self._storage_root = storage_root
 
     def is_drifted(self) -> bool:
@@ -30,8 +32,9 @@ class DriftDetector:
         return False
 
     def _read_last_reindex(self) -> datetime | None:
-        cur = self._conn.execute("SELECT value FROM meta WHERE key = 'last_full_reindex'")
-        row = cur.fetchone()
+        with self._lock:
+            cur = self._conn.execute("SELECT value FROM meta WHERE key = 'last_full_reindex'")
+            row = cur.fetchone()
         if row is None:
             return None
         return datetime.fromisoformat(row[0])

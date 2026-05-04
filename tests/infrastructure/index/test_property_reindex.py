@@ -72,9 +72,9 @@ def test_full_rebuild_matches_input_graph(
                     raw_bytes=b"\xff\xd8\xff\xd9",
                 )
 
-    conn = open_index_database(":memory:")
+    conn, lock = open_index_database(":memory:")
     try:
-        projector = SqliteIndexProjector(conn)
+        projector = SqliteIndexProjector(conn, lock)
         stats = projector.full_rebuild(vrepo, rrepo, irepo)
 
         assert stats.vehicles_indexed == vehicle_count

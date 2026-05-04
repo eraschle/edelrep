@@ -1,4 +1,5 @@
 import sqlite3
+import threading
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,6 +30,7 @@ def _build_components(
     FilesystemRepairRepository,
     FilesystemImageRepository,
     sqlite3.Connection,
+    threading.RLock,
     Path,
 ]:
     storage = tmp_path / "store"
@@ -37,13 +39,13 @@ def _build_components(
     vrepo = FilesystemVehicleRepository(backend)
     rrepo = FilesystemRepairRepository(backend)
     irepo = FilesystemImageRepository(backend)
-    conn = open_index_database(tmp_path / "index.db")
-    return backend, vrepo, rrepo, irepo, conn, storage
+    conn, lock = open_index_database(tmp_path / "index.db")
+    return backend, vrepo, rrepo, irepo, conn, lock, storage
 
 
 def test_external_vehicle_appears_in_search_within_sla(tmp_path: Path) -> None:
-    _, vrepo, rrepo, irepo, conn, storage_root = _build_components(tmp_path)
-    projector = SqliteIndexProjector(conn)
+    _, vrepo, rrepo, irepo, conn, lock, storage_root = _build_components(tmp_path)
+    projector = SqliteIndexProjector(conn, lock)
     live = LiveIndex(
         storage_root=storage_root,
         projector=projector,
@@ -63,7 +65,7 @@ def test_external_vehicle_appears_in_search_within_sla(tmp_path: Path) -> None:
             )
         )
         deadline = time.monotonic() + WATCH_DEADLINE_SECONDS
-        idx = SqliteSearchIndex(conn)
+        idx = SqliteSearchIndex(conn, lock)
         results: list[Vehicle] = []
         while time.monotonic() < deadline:
             results = list(idx.search_vehicles("liveindex"))
@@ -78,7 +80,7 @@ def test_external_vehicle_appears_in_search_within_sla(tmp_path: Path) -> None:
 
 
 def test_drift_detected_at_start_when_sidecar_newer_than_index(tmp_path: Path) -> None:
-    _, vrepo, rrepo, irepo, conn, storage_root = _build_components(tmp_path)
+    _, vrepo, rrepo, irepo, conn, lock, storage_root = _build_components(tmp_path)
     vrepo.save(
         Vehicle(
             id=VehicleId("12345"),
@@ -89,7 +91,7 @@ def test_drift_detected_at_start_when_sidecar_newer_than_index(tmp_path: Path) -
     )
     live = LiveIndex(
         storage_root=storage_root,
-        projector=SqliteIndexProjector(conn),
+        projector=SqliteIndexProjector(conn, lock),
         vehicle_repo=vrepo,
         repair_repo=rrepo,
         image_repo=irepo,
@@ -103,10 +105,10 @@ def test_drift_detected_at_start_when_sidecar_newer_than_index(tmp_path: Path) -
 
 
 def test_stop_is_idempotent(tmp_path: Path) -> None:
-    _, vrepo, rrepo, irepo, conn, storage_root = _build_components(tmp_path)
+    _, vrepo, rrepo, irepo, conn, lock, storage_root = _build_components(tmp_path)
     live = LiveIndex(
         storage_root=storage_root,
-        projector=SqliteIndexProjector(conn),
+        projector=SqliteIndexProjector(conn, lock),
         vehicle_repo=vrepo,
         repair_repo=rrepo,
         image_repo=irepo,
@@ -118,10 +120,10 @@ def test_stop_is_idempotent(tmp_path: Path) -> None:
 
 
 def test_is_running(tmp_path: Path) -> None:
-    _, vrepo, rrepo, irepo, conn, storage_root = _build_components(tmp_path)
+    _, vrepo, rrepo, irepo, conn, lock, storage_root = _build_components(tmp_path)
     live = LiveIndex(
         storage_root=storage_root,
-        projector=SqliteIndexProjector(conn),
+        projector=SqliteIndexProjector(conn, lock),
         vehicle_repo=vrepo,
         repair_repo=rrepo,
         image_repo=irepo,

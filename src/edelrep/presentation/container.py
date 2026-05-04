@@ -76,9 +76,9 @@ def build_container(
 
     if isinstance(index_path, Path):
         index_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = open_index_database(index_path)
-    projector = SqliteIndexProjector(conn)
-    search_index = SqliteSearchIndex(conn)
+    conn, lock = open_index_database(index_path)
+    projector = SqliteIndexProjector(conn, lock)
+    search_index = SqliteSearchIndex(conn, lock)
 
     processor = PillowImageProcessor()
 

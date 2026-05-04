@@ -48,7 +48,7 @@ class LiveIndex:
         self._handler = KeyEventHandler(storage_root, self._debouncer)
         self._observer: BaseObserver | None = None
         self._drift_detected = False
-        self._drift_detector = DriftDetector(projector.connection, storage_root)
+        self._drift_detector = DriftDetector(projector.connection, projector.lock, storage_root)
 
     @property
     def drift_detected(self) -> bool:
