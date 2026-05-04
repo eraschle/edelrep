@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from ulid import ULID
 
 from edelrep.presentation.container import Container
 
@@ -82,7 +83,6 @@ def test_create_repair_with_json_accept_returns_201_and_repair_id(
     assert "repair_id" in body
     assert body["vehicle_url"] == "/vehicles/12345"
     # repair_id must be parseable as a ULID.
-    from ulid import ULID
     ULID.from_str(body["repair_id"])
 
 

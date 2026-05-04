@@ -147,9 +147,7 @@ def test_upload_image_with_json_accept_returns_201_and_image_id(
     ULID.from_str(body["image_id"])
 
 
-def test_upload_non_image_with_json_accept_returns_422_json(
-    client: TestClient, container: Container
-) -> None:
+def test_upload_non_image_with_json_accept_returns_422_json(client: TestClient, container: Container) -> None:
     repair_id = _seed_repair(container)
     r = client.post(
         f"/vehicles/12345/repairs/{repair_id}/images",
