@@ -1,16 +1,16 @@
 {% if results %}
-<ul class="space-y-2">
+<ul class="space-y-3">
 {% for v in results %}
-  <li class="bg-white border rounded p-4">
+  <li>
     <a href="/vehicles/{{ v.id.registration_number }}"
-       class="block hover:bg-slate-50">
-      <div class="text-xl font-semibold">{{ v.id.registration_number }}</div>
-      {% if v.vin %}<div class="text-sm text-slate-600">Rahmennummer: {{ v.vin }}</div>{% endif %}
-      {% if v.description %}<div class="text-sm">{{ v.description }}</div>{% endif %}
+       class="block bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-blue-300 transition-all">
+      <div class="text-xl font-semibold tracking-tight">{{ v.id.registration_number }}</div>
+      {% if v.vin %}<div class="text-sm text-slate-600 mt-1">Rahmennummer: <span class="font-mono">{{ v.vin }}</span></div>{% endif %}
+      {% if v.description %}<div class="text-sm text-slate-700 mt-1">{{ v.description }}</div>{% endif %}
     </a>
   </li>
 {% endfor %}
 </ul>
 {% else %}
-<p class="text-slate-500">Keine Fahrzeuge gefunden.</p>
+<p class="text-slate-500 text-center py-8">Keine Fahrzeuge gefunden.</p>
 {% endif %}

@@ -1,14 +1,20 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Suche – edelrep{% endblock %}
 {% block content %}
-<h1 class="text-3xl font-bold mb-6">Fahrzeug suchen</h1>
-<input type="search"
-       name="q"
-       placeholder="Stammnummer oder Rahmennummer eingeben"
-       hx-get="/search/suggestions"
-       hx-trigger="keyup changed delay:200ms, search"
-       hx-target="#suggestions"
-       class="w-full p-4 text-2xl border-2 rounded mb-4">
+<h1 class="text-3xl font-bold mb-6 tracking-tight">Fahrzeug suchen</h1>
+<div class="relative mb-6">
+  <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 pointer-events-none">
+    {{ icon("search", "w-5 h-5") }}
+  </span>
+  <input type="search"
+         name="q"
+         placeholder="Stammnummer oder Rahmennummer eingeben"
+         hx-get="/search/suggestions"
+         hx-trigger="keyup changed delay:200ms, search"
+         hx-target="#suggestions"
+         class="w-full pl-12 pr-4 py-4 text-lg bg-white border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
+</div>
 <div id="suggestions">
   {% include "_vehicle_search_results.html" %}
 </div>

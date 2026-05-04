@@ -1,17 +1,41 @@
 <!doctype html>
 <html lang="de">
+{%- from "_icons.html" import icon -%}
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}edelrep{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .animate-spin-slow { animation: spin 1.2s linear infinite; }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen">
-  <nav class="bg-white border-b">
-    <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
-      <a href="/search" class="text-xl font-bold">edelrep</a>
-      <a href="/vehicles/new" class="text-sm bg-blue-600 text-white px-3 py-2 rounded">+ Fahrzeug</a>
+<body class="bg-slate-50 text-slate-900 min-h-screen antialiased">
+  <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto px-6 py-3 flex justify-between items-center gap-4">
+      <a href="/search"
+         title="Zur Hauptseite"
+         class="group flex items-center gap-2 px-3 py-2 -mx-3 rounded-lg hover:bg-slate-100 transition-colors">
+        <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white shadow-sm group-hover:bg-blue-700 transition-colors">
+          {{ icon("wrench", "w-4 h-4") }}
+        </span>
+        <span class="flex flex-col leading-tight">
+          <span class="text-lg font-semibold tracking-tight">edelrep</span>
+          <span class="text-xs text-slate-500 group-hover:text-slate-700 transition-colors flex items-center gap-1">
+            {{ icon("home", "w-3 h-3") }} Hauptseite
+          </span>
+        </span>
+      </a>
+      <a href="/vehicles/new"
+         class="inline-flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
+        {{ icon("plus", "w-4 h-4") }} Fahrzeug
+      </a>
     </div>
   </nav>
   <main class="max-w-4xl mx-auto px-6 py-8">
