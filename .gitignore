@@ -33,6 +33,7 @@ Thumbs.db
 .coverage
 .coverage.*
 *.cover
+*,cover
 htmlcov/
 .tox/
 .nox/
