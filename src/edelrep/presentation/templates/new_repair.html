@@ -1,8 +1,19 @@
 {% extends "base.html" %}
+{% from "_image_picker.html" import image_picker %}
 {% block title %}Neue Reparatur{% endblock %}
 {% block content %}
 <h1 class="text-2xl font-bold mb-4">Neue Reparatur für {{ registration_number }}</h1>
-<form method="post" action="/vehicles/{{ registration_number }}/repairs" class="space-y-4">
+
+<noscript>
+  <p class="bg-yellow-100 border border-yellow-300 text-yellow-900 p-3 rounded mb-4 text-sm">
+    Ohne JavaScript kannst du die Reparatur anlegen und Bilder anschliessend
+    auf der Fahrzeug-Detailseite über "Bilder hochladen" ergänzen.
+  </p>
+</noscript>
+
+<form id="repair-form" method="post"
+      action="/vehicles/{{ registration_number }}/repairs"
+      class="space-y-5">
   <div>
     <label for="description" class="block text-sm font-medium">Beschreibung</label>
     <input type="text" id="description" name="description" required
@@ -16,6 +27,141 @@
       <p class="text-red-600 text-sm">{{ errors.date }}</p>
     {% endif %}
   </div>
-  <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded font-semibold">Anlegen</button>
+
+  <div>
+    <p class="block text-sm font-medium mb-2">Bilder (mind. 1)</p>
+    {{ image_picker(name="repair_images") }}
+  </div>
+
+  <div id="repair-form-error" class="text-red-600 text-sm" hidden></div>
+  <div id="repair-form-banner" class="bg-yellow-100 border border-yellow-300 text-yellow-900 p-3 rounded text-sm" hidden></div>
+
+  <button type="submit" id="repair-submit"
+          class="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-6 py-3 rounded font-semibold"
+          disabled>
+    Anlegen
+  </button>
 </form>
+
+<script>
+(function () {
+  const form = document.getElementById('repair-form');
+  const desc = document.getElementById('description');
+  const dateEl = document.getElementById('date');
+  const submit = document.getElementById('repair-submit');
+  const errorBox = document.getElementById('repair-form-error');
+  const banner = document.getElementById('repair-form-banner');
+  const picker = form.querySelector('[data-image-picker]');
+
+  function validImageCount() {
+    if (!picker.pickerApi) return 0;
+    return picker.pickerApi.getEntries().length;
+  }
+
+  function refreshSubmit() {
+    const ok = desc.value.trim() && dateEl.value && validImageCount() > 0;
+    submit.disabled = !ok;
+  }
+
+  desc.addEventListener('input', refreshSubmit);
+  dateEl.addEventListener('input', refreshSubmit);
+  picker.addEventListener('picker:change', refreshSubmit);
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    submit.textContent = 'Lade hoch…';
+    errorBox.hidden = true;
+    banner.hidden = true;
+
+    // 1. Create the repair.
+    let repairResp;
+    try {
+      const fd = new FormData();
+      fd.set('description', desc.value);
+      fd.set('date', dateEl.value);
+      repairResp = await fetch(form.action, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: fd,
+      });
+    } catch (err) {
+      showError('Netzwerkfehler beim Anlegen der Reparatur.');
+      return;
+    }
+    if (!repairResp.ok) {
+      const body = await repairResp.json().catch(() => ({}));
+      showError(body.error || `Fehler ${repairResp.status} beim Anlegen.`);
+      return;
+    }
+    const { repair_id, vehicle_url } = await repairResp.json();
+
+    // 2. Upload each image sequentially.
+    const baseUrl = `/vehicles/{{ registration_number }}/repairs/${repair_id}/images`;
+    const entries = picker.pickerApi.getEntries();
+    let failures = 0;
+    for (const entry of entries) {
+      picker.pickerApi.setStatus(entry.id, 'uploading');
+      const ok = await uploadOne(entry, baseUrl);
+      if (!ok) failures++;
+    }
+
+    // 3. Decide on redirect vs. banner.
+    if (failures === 0) {
+      banner.textContent = 'Alle Bilder hochgeladen. Weiterleitung…';
+      banner.classList.remove('bg-yellow-100', 'text-yellow-900', 'border-yellow-300');
+      banner.classList.add('bg-green-100', 'text-green-900', 'border-green-300');
+      banner.hidden = false;
+      setTimeout(() => { window.location.href = vehicle_url; }, 800);
+    } else {
+      const total = entries.length;
+      banner.innerHTML =
+        `Reparatur angelegt. ${total - failures} von ${total} Bildern hochgeladen. ` +
+        `Du kannst fehlgeschlagene Bilder erneut versuchen oder ` +
+        `<a class="underline" href="${vehicle_url}">zur Fahrzeug-Detailseite</a> weitergehen.`;
+      banner.hidden = false;
+      submit.hidden = true;
+    }
+  });
+
+  async function uploadOne(entry, baseUrl) {
+    const fd = new FormData();
+    fd.set('image', entry.file, entry.file.name);
+    let resp;
+    try {
+      resp = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: fd,
+      });
+    } catch (err) {
+      picker.pickerApi.setStatus(entry.id, 'error', 'Netzwerk');
+      picker.pickerApi.onRetry(entry.id, (e) => retryUpload(e, baseUrl));
+      return false;
+    }
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      picker.pickerApi.setStatus(entry.id, 'error', body.error || `HTTP ${resp.status}`);
+      picker.pickerApi.onRetry(entry.id, (e) => retryUpload(e, baseUrl));
+      return false;
+    }
+    picker.pickerApi.setStatus(entry.id, 'ok');
+    return true;
+  }
+
+  async function retryUpload(entry, baseUrl) {
+    picker.pickerApi.setStatus(entry.id, 'uploading');
+    await uploadOne(entry, baseUrl);
+  }
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.hidden = false;
+    submit.textContent = 'Anlegen';
+    refreshSubmit();
+  }
+
+  refreshSubmit();
+})();
+</script>
 {% endblock %}
