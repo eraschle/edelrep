@@ -130,6 +130,50 @@ def test_upload_image_with_invalid_repair_id_returns_404(client: TestClient, con
     assert r.status_code == 404
 
 
+def test_upload_image_with_json_accept_returns_201_and_image_id(
+    client: TestClient, container: Container
+) -> None:
+    repair_id = _seed_repair(container)
+    jpeg = _make_jpeg()
+    r = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("photo.jpg", jpeg, "image/jpeg")},
+        headers={"Accept": "application/json"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert "image_id" in body
+    ULID.from_str(body["image_id"])
+
+
+def test_upload_non_image_with_json_accept_returns_422_json(
+    client: TestClient, container: Container
+) -> None:
+    repair_id = _seed_repair(container)
+    r = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("photo.jpg", b"this is not an image", "image/jpeg")},
+        headers={"Accept": "application/json"},
+    )
+    assert r.status_code == 422
+    assert "error" in r.json()
+
+
+def test_upload_image_missing_repair_with_json_accept_returns_404_json(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    jpeg = _make_jpeg()
+    r = client.post(
+        "/vehicles/12345/repairs/01J9TGZP6X2K0V3W7Y8Z4QABCD/images",
+        files={"image": ("photo.jpg", jpeg, "image/jpeg")},
+        headers={"Accept": "application/json"},
+    )
+    assert r.status_code == 404
+    assert "error" in r.json()
+
+
 def test_thumbnail_returns_404_when_image_has_no_thumbnail(client: TestClient, container: Container) -> None:
     """If an image was saved without thumbnail_bytes, the thumbnail endpoint 404s."""
     # Seed via the use case path, then directly save a no-thumbnail image via repo.

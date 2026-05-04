@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from ulid import ULID
 
 from edelrep.domain.exceptions import (
@@ -43,26 +43,36 @@ def upload_form(
     response_model=None,
 )
 def upload_image(
+    request: Request,
     container: ContainerDep,
     registration_number: str,
     repair_id: str,
     image: UploadFile,
-) -> RedirectResponse:
+) -> RedirectResponse | JSONResponse:
+    wants_json = "application/json" in request.headers.get("accept", "")
     try:
         rid = ULID.from_str(repair_id)
     except ValueError as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=404)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     raw = image.file.read()
     try:
-        container.upload_image.execute(
+        saved = container.upload_image.execute(
             repair_id=rid,
             raw_bytes=raw,
             filename=image.filename or "upload.jpg",
         )
     except RepairNotFound as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=404)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=422)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if wants_json:
+        return JSONResponse({"image_id": str(saved.id)}, status_code=201)
     return RedirectResponse(
         url=f"/vehicles/{registration_number}",
         status_code=303,
