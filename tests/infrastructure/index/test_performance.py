@@ -12,7 +12,7 @@ VEHICLE_COUNT = 1000
 
 @pytest.fixture
 def populated_index() -> Iterator[SqliteSearchIndex]:
-    conn = open_index_database(":memory:")
+    conn, lock = open_index_database(":memory:")
     try:
         rows = [
             (
@@ -29,7 +29,7 @@ def populated_index() -> Iterator[SqliteSearchIndex]:
             rows,
         )
         conn.execute("COMMIT")
-        yield SqliteSearchIndex(conn)
+        yield SqliteSearchIndex(conn, lock)
     finally:
         conn.close()
 

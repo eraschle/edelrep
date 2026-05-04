@@ -1,4 +1,5 @@
 import sqlite3
+import threading
 from importlib.resources import files
 from pathlib import Path
 
@@ -7,15 +8,21 @@ _SCHEMA_SQL = files("edelrep.infrastructure.index").joinpath("schema.sql").read_
 _USER_TABLES = ("images", "repairs", "vehicles", "meta")
 
 
-def open_index_database(path: Path | str) -> sqlite3.Connection:
-    """Open (and migrate if needed) a SQLite index database."""
+def open_index_database(path: Path | str) -> tuple[sqlite3.Connection, threading.RLock]:
+    """Open (and migrate if needed) a SQLite index database.
+
+    Returns a ``(connection, lock)`` pair.  The lock must be shared by every
+    object that calls ``connection.execute(...)`` so that concurrent access
+    from the watcher thread and the request thread is serialised.
+    """
     conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     if isinstance(path, Path) or path != ":memory:":
         conn.execute("PRAGMA journal_mode = WAL")
     _ensure_schema(conn)
-    return conn
+    lock: threading.RLock = threading.RLock()
+    return conn, lock
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:

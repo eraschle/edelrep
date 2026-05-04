@@ -118,3 +118,36 @@ class InMemoryImageRepo:
 
     def thumbnail_bytes_for(self, image_id: ULID) -> bytes | None:
         return self._store[image_id][2]
+
+
+class InMemoryStorageBackend:
+    """Minimal fake StorageBackend backed by an InMemoryImageRepo.
+
+    Reads bytes by looking up the storage_key in the image repo's internal
+    store so that UploadImageUseCase's duplicate-check can resolve keys.
+    """
+
+    def __init__(self, image_repo: InMemoryImageRepo) -> None:
+        self._image_repo = image_repo
+
+    def read_bytes(self, key: str) -> bytes:
+        for _img, raw, _thumb in self._image_repo._store.values():
+            if _img.storage_key == key:
+                return raw
+        raise FileNotFoundError(key)
+
+    # The remaining StorageBackend methods are not needed for upload tests.
+    def write_bytes(self, key: str, data: bytes) -> None:  # pragma: no cover
+        raise NotImplementedError
+
+    def open_read(self, key: str):  # pragma: no cover
+        raise NotImplementedError
+
+    def delete(self, key: str) -> None:  # pragma: no cover
+        raise NotImplementedError
+
+    def exists(self, key: str) -> bool:  # pragma: no cover
+        raise NotImplementedError
+
+    def list_prefix(self, prefix: str):  # pragma: no cover
+        raise NotImplementedError

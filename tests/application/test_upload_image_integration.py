@@ -48,7 +48,7 @@ def test_upload_creates_correct_layout(tmp_path: Path) -> None:
     )
     rrepo.save(repair)
 
-    use_case = UploadImageUseCase(rrepo, irepo, PillowImageProcessor())
+    use_case = UploadImageUseCase(rrepo, irepo, PillowImageProcessor(), backend)
     image = use_case.execute(
         repair_id=repair.id,
         raw_bytes=_real_jpeg_bytes(),

@@ -62,3 +62,14 @@ class DuplicateRepair(DomainError):
         super().__init__(f"Repair folder already exists for vehicle {vehicle_id!r}: {folder_name!r}")
         self.vehicle_id = vehicle_id
         self.folder_name = folder_name
+
+
+class DuplicateImage(DomainError):
+    """Raised when uploading an image whose content matches an existing image in the same repair."""
+
+    def __init__(self, repair_id: ULID, existing_filename: str) -> None:
+        super().__init__(
+            f"Identisches Bild ist bereits in Reparatur {repair_id!s} vorhanden ({existing_filename!r})"
+        )
+        self.repair_id = repair_id
+        self.existing_filename = existing_filename

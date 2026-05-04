@@ -76,9 +76,9 @@ def build_container(
 
     if isinstance(index_path, Path):
         index_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = open_index_database(index_path)
-    projector = SqliteIndexProjector(conn)
-    search_index = SqliteSearchIndex(conn)
+    conn, lock = open_index_database(index_path)
+    projector = SqliteIndexProjector(conn, lock)
+    search_index = SqliteSearchIndex(conn, lock)
 
     processor = PillowImageProcessor()
 
@@ -93,7 +93,7 @@ def build_container(
         projector=projector,
         create_vehicle=CreateVehicleUseCase(vehicle_repo, search_index),
         create_repair=CreateRepairUseCase(vehicle_repo, repair_repo),
-        upload_image=UploadImageUseCase(repair_repo, image_repo, processor),
+        upload_image=UploadImageUseCase(repair_repo, image_repo, processor, backend),
         list_repairs=ListRepairsUseCase(vehicle_repo, repair_repo),
         get_image=GetImageUseCase(image_repo, backend),
         search_vehicle=SearchVehicleUseCase(search_index),

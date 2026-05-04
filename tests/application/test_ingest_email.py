@@ -63,7 +63,7 @@ def _build(
     rrepo = FilesystemRepairRepository(backend)
     irepo = FilesystemImageRepository(backend)
     create_repair = CreateRepairUseCase(vrepo, rrepo)
-    upload_image = UploadImageUseCase(rrepo, irepo, PillowImageProcessor())
+    upload_image = UploadImageUseCase(rrepo, irepo, PillowImageProcessor(), backend)
     inbox_store = InboxStore(backend)
     return backend, vrepo, rrepo, irepo, create_repair, upload_image, inbox_store
 
@@ -239,13 +239,22 @@ def test_filters_non_image_attachments(tmp_path: Path) -> None:
     assert stats.skipped == 1
 
 
+def _jpeg_different() -> bytes:
+    """Return JPEG bytes that differ from _jpeg() to avoid content-dedup rejection."""
+    img = PILImage.new("RGB", (100, 100), color=(200, 50, 10))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    return buf.getvalue()
+
+
 def test_handles_duplicate_repair(tmp_path: Path) -> None:
     _backend, vrepo, rrepo, irepo, cr, ui, store = _build(tmp_path)
     create_vehicle = CreateVehicleUseCase(vrepo, InMemorySearchIndex())
     create_vehicle.execute(registration_number="12345", vin=None, description=None)
 
-    msg1 = _msg_with_jpeg(msg_id="<m1@x>", subject="Stammnr 12345 Bremsen")
-    msg2 = _msg_with_jpeg(msg_id="<m2@x>", subject="Stammnr 12345 Bremsen")
+    # Use distinct images so content-dedup doesn't reject the second upload.
+    msg1 = _msg_with_jpeg(msg_id="<m1@x>", subject="Stammnr 12345 Bremsen", image=_jpeg())
+    msg2 = _msg_with_jpeg(msg_id="<m2@x>", subject="Stammnr 12345 Bremsen", image=_jpeg_different())
     inbox = _FakeInbox([msg1, msg2])
     use_case = IngestEmailUseCase(
         inbox=inbox,
@@ -320,8 +329,9 @@ def test_duplicate_repair_fallback_skips_non_matching_repairs(tmp_path: Path) ->
     # Now ingest two messages with the same subject (same date/description) to trigger
     # DuplicateRepair on the second; the decoy repair (newer date) will be iterated
     # first (no match), then the target repair is found (covers the 118->117 branch).
-    msg1 = _msg_with_jpeg(msg_id="<d1@x>", subject="Stammnr 12345 Bremsen")
-    msg2 = _msg_with_jpeg(msg_id="<d2@x>", subject="Stammnr 12345 Bremsen")
+    # Use distinct images so content-dedup doesn't reject the second upload.
+    msg1 = _msg_with_jpeg(msg_id="<d1@x>", subject="Stammnr 12345 Bremsen", image=_jpeg())
+    msg2 = _msg_with_jpeg(msg_id="<d2@x>", subject="Stammnr 12345 Bremsen", image=_jpeg_different())
     inbox = _FakeInbox([msg1, msg2])
     use_case = IngestEmailUseCase(
         inbox=inbox,
