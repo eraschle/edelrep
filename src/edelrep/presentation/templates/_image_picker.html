@@ -1,0 +1,192 @@
+{% macro image_picker(name="image_picker", max_size_mb=25) %}
+<div class="image-picker space-y-3"
+     data-image-picker
+     data-name="{{ name }}"
+     data-max-size-bytes="{{ max_size_mb * 1024 * 1024 }}">
+
+  <input type="file" multiple accept="image/*"
+         data-picker-input="gallery" hidden>
+  <input type="file" accept="image/*" capture="environment"
+         data-picker-input="camera" hidden>
+
+  <div class="flex gap-3">
+    <button type="button" data-picker-trigger="camera"
+            class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 px-4 py-3 rounded font-medium">
+      📷 Foto aufnehmen
+    </button>
+    <button type="button" data-picker-trigger="gallery"
+            class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 px-4 py-3 rounded font-medium">
+      📁 Bilder auswählen
+    </button>
+  </div>
+
+  <p data-picker-hint class="text-sm text-slate-500" hidden></p>
+
+  <ul data-picker-list class="space-y-2"></ul>
+
+  <template data-picker-entry-template>
+    <li class="flex items-center gap-3 bg-white border rounded p-2"
+        data-entry>
+      <img data-entry-thumb alt=""
+           class="h-16 w-16 object-cover border rounded bg-slate-100">
+      <div class="flex-1 min-w-0">
+        <p data-entry-filename class="font-medium truncate"></p>
+        <p data-entry-meta class="text-xs text-slate-500"></p>
+        <p data-entry-status class="text-xs"></p>
+      </div>
+      <button type="button" data-entry-retry hidden
+              class="text-sm text-blue-600 hover:underline">Erneut</button>
+      <button type="button" data-entry-remove
+              class="text-slate-400 hover:text-red-600 text-xl px-2"
+              aria-label="Entfernen">×</button>
+    </li>
+  </template>
+</div>
+
+<script>
+(function () {
+  // Initialise every uninitialised picker on the page.
+  document.querySelectorAll('[data-image-picker]:not([data-initialised])').forEach(initPicker);
+
+  function initPicker(root) {
+    root.dataset.initialised = '1';
+    const maxSize = Number(root.dataset.maxSizeBytes);
+    const galleryInput = root.querySelector('[data-picker-input="gallery"]');
+    const cameraInput = root.querySelector('[data-picker-input="camera"]');
+    const list = root.querySelector('[data-picker-list]');
+    const tpl = root.querySelector('[data-picker-entry-template]');
+    const hint = root.querySelector('[data-picker-hint]');
+    const entries = []; // {id, file, status, el, statusEl, retryBtn}
+    let nextId = 1;
+
+    root.querySelector('[data-picker-trigger="camera"]').addEventListener('click', () => cameraInput.click());
+    root.querySelector('[data-picker-trigger="gallery"]').addEventListener('click', () => galleryInput.click());
+    galleryInput.addEventListener('change', () => {
+      addFiles(Array.from(galleryInput.files || []));
+      galleryInput.value = '';
+    });
+    cameraInput.addEventListener('change', () => {
+      addFiles(Array.from(cameraInput.files || []));
+      cameraInput.value = '';
+    });
+
+    function addFiles(files) {
+      let added = false;
+      for (const file of files) {
+        const result = addFile(file);
+        if (result === 'ok') added = true;
+      }
+      if (added) emitChange();
+    }
+
+    function addFile(file) {
+      // 1. MIME check
+      if (!file.type.startsWith('image/')) {
+        renderInvalidEntry(file, 'Kein Bildformat');
+        return 'invalid';
+      }
+      // 2. Size check
+      if (file.size > maxSize) {
+        const mb = (file.size / (1024 * 1024)).toFixed(1);
+        const maxMb = Math.round(maxSize / (1024 * 1024));
+        renderInvalidEntry(file, `Zu gross (${mb} MB, max ${maxMb})`);
+        return 'invalid';
+      }
+      // 3. Duplicate check
+      if (entries.some(e => e.file.name === file.name && e.file.size === file.size)) {
+        showHint(`"${file.name}" ist bereits ausgewählt.`);
+        return 'duplicate';
+      }
+      const id = nextId++;
+      const el = renderEntry(file, id);
+      entries.push({ id, file, status: 'pending', el,
+                     statusEl: el.querySelector('[data-entry-status]'),
+                     retryBtn: el.querySelector('[data-entry-retry]') });
+      return 'ok';
+    }
+
+    function renderEntry(file, id) {
+      const li = tpl.content.firstElementChild.cloneNode(true);
+      li.dataset.entryId = String(id);
+      li.querySelector('[data-entry-thumb]').src = URL.createObjectURL(file);
+      li.querySelector('[data-entry-filename]').textContent = file.name;
+      li.querySelector('[data-entry-meta]').textContent = formatBytes(file.size);
+      li.querySelector('[data-entry-status]').textContent = '🕐 wartet';
+      li.querySelector('[data-entry-remove]').addEventListener('click', () => removeEntry(id));
+      list.appendChild(li);
+      return li;
+    }
+
+    function renderInvalidEntry(file, message) {
+      const li = tpl.content.firstElementChild.cloneNode(true);
+      li.querySelector('[data-entry-thumb]').alt = '';
+      const thumb = li.querySelector('[data-entry-thumb]');
+      if (file.type.startsWith('image/')) {
+        thumb.src = URL.createObjectURL(file);
+      } else {
+        thumb.classList.add('opacity-30');
+      }
+      li.querySelector('[data-entry-filename]').textContent = file.name;
+      li.querySelector('[data-entry-meta]').textContent = formatBytes(file.size);
+      const statusEl = li.querySelector('[data-entry-status]');
+      statusEl.textContent = `❌ ${message}`;
+      statusEl.classList.add('text-red-600');
+      li.querySelector('[data-entry-remove]').addEventListener('click', () => li.remove());
+      list.appendChild(li);
+    }
+
+    function removeEntry(id) {
+      const idx = entries.findIndex(e => e.id === id);
+      if (idx === -1) return;
+      entries[idx].el.remove();
+      entries.splice(idx, 1);
+      emitChange();
+    }
+
+    function showHint(text) {
+      hint.textContent = text;
+      hint.hidden = false;
+      setTimeout(() => { hint.hidden = true; }, 3000);
+    }
+
+    function formatBytes(n) {
+      if (n < 1024) return `${n} B`;
+      if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+      return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function emitChange() {
+      root.dispatchEvent(new CustomEvent('picker:change', {
+        detail: { count: entries.length },
+        bubbles: true,
+      }));
+    }
+
+    // Public API exposed on the root element.
+    root.pickerApi = {
+      getEntries: () => entries.slice(),
+      setStatus(id, status, message) {
+        const e = entries.find(x => x.id === id);
+        if (!e) return;
+        e.status = status;
+        const map = {
+          uploading: { text: '🔄 lädt hoch…', cls: 'text-slate-600' },
+          ok:        { text: '✅ hochgeladen', cls: 'text-green-700' },
+          error:     { text: `❌ Fehler${message ? ': ' + message : ''}`, cls: 'text-red-600' },
+          pending:   { text: '🕐 wartet', cls: 'text-slate-600' },
+        };
+        const m = map[status];
+        e.statusEl.textContent = m.text;
+        e.statusEl.className = 'text-xs ' + m.cls;
+        e.retryBtn.hidden = (status !== 'error');
+      },
+      onRetry(id, handler) {
+        const e = entries.find(x => x.id === id);
+        if (!e) return;
+        e.retryBtn.addEventListener('click', () => handler(e));
+      },
+    };
+  }
+})();
+</script>
+{% endmacro %}
