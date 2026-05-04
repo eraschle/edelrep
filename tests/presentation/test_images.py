@@ -172,6 +172,33 @@ def test_upload_image_missing_repair_with_json_accept_returns_404_json(
     assert "error" in r.json()
 
 
+def test_upload_duplicate_image_returns_422_with_german_message(
+    client: TestClient, container: Container
+) -> None:
+    """Uploading the same JPEG twice returns 422 with the German error message."""
+    repair_id = _seed_repair(container)
+    jpeg = _make_jpeg()
+
+    # First upload succeeds.
+    r1 = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("photo.jpg", jpeg, "image/jpeg")},
+        headers={"Accept": "application/json"},
+    )
+    assert r1.status_code == 201
+
+    # Second upload with identical bytes must fail.
+    r2 = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("photo_copy.jpg", jpeg, "image/jpeg")},
+        headers={"Accept": "application/json"},
+    )
+    assert r2.status_code == 422
+    body = r2.json()
+    assert "error" in body
+    assert "Identisches Bild" in body["error"]
+
+
 def test_thumbnail_returns_404_when_image_has_no_thumbnail(client: TestClient, container: Container) -> None:
     """If an image was saved without thumbnail_bytes, the thumbnail endpoint 404s."""
     # Seed via the use case path, then directly save a no-thumbnail image via repo.

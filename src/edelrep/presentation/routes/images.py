@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from ulid import ULID
 
 from edelrep.domain.exceptions import (
+    DuplicateImage,
     ImageNotFound,
     InvalidVehicleId,
     RepairNotFound,
@@ -67,6 +68,10 @@ def upload_image(
         if wants_json:
             return JSONResponse({"error": str(exc)}, status_code=404)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except DuplicateImage as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ValueError as exc:
         if wants_json:
             return JSONResponse({"error": str(exc)}, status_code=422)
