@@ -1,16 +1,123 @@
 {% extends "base.html" %}
+{% from "_image_picker.html" import image_picker %}
 {% block title %}Bilder hochladen{% endblock %}
 {% block content %}
 <h1 class="text-2xl font-bold mb-4">Bilder hochladen</h1>
-<form method="post"
-      action="/vehicles/{{ registration_number }}/repairs/{{ repair_id }}/images"
-      enctype="multipart/form-data"
-      class="space-y-4">
-  <div>
-    <label for="image" class="block text-sm font-medium">Bilddatei</label>
-    <input type="file" id="image" name="image" accept="image/*" required
+
+<noscript>
+  <form method="post"
+        action="/vehicles/{{ registration_number }}/repairs/{{ repair_id }}/images"
+        enctype="multipart/form-data" class="space-y-4">
+    <input type="file" name="image" accept="image/*" required
            class="w-full p-3 border rounded bg-white">
-  </div>
-  <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded font-semibold">Hochladen</button>
+    <button type="submit"
+            class="bg-blue-600 text-white px-6 py-3 rounded font-semibold">
+      Hochladen
+    </button>
+  </form>
+</noscript>
+
+<form id="upload-form" class="space-y-5"
+      data-vehicle-url="/vehicles/{{ registration_number }}"
+      data-images-url="/vehicles/{{ registration_number }}/repairs/{{ repair_id }}/images">
+  {{ image_picker(name="repair_images") }}
+  <div id="upload-banner" class="bg-yellow-100 border border-yellow-300 text-yellow-900 p-3 rounded text-sm" hidden></div>
+  <button type="submit" id="upload-submit"
+          class="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-6 py-3 rounded font-semibold">
+    Hochladen
+  </button>
 </form>
+
+<script>
+(function () {
+  const form = document.getElementById('upload-form');
+  if (!form) return;
+  const submit = document.getElementById('upload-submit');
+  const banner = document.getElementById('upload-banner');
+  const picker = form.querySelector('[data-image-picker]');
+  const baseUrl = form.dataset.imagesUrl;
+  const vehicleUrl = form.dataset.vehicleUrl;
+
+  function refreshSubmit() {
+    const count = picker.pickerApi ? picker.pickerApi.getEntries().length : 0;
+    submit.disabled = count === 0;
+  }
+  picker.addEventListener('picker:change', refreshSubmit);
+  refreshSubmit();
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    submit.textContent = 'Lade hoch…';
+    banner.hidden = true;
+
+    const entries = picker.pickerApi.getEntries();
+    for (const entry of entries) {
+      picker.pickerApi.setStatus(entry.id, 'uploading');
+      await uploadOne(entry);
+    }
+    settleAfterUploads();
+  });
+
+  async function uploadOne(entry) {
+    const fd = new FormData();
+    fd.set('image', entry.file, entry.file.name);
+    let resp;
+    try {
+      resp = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: fd,
+      });
+    } catch (err) {
+      picker.pickerApi.setStatus(entry.id, 'error', 'Netzwerk');
+      picker.pickerApi.onRetry(entry.id, retryUpload);
+      return false;
+    }
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      picker.pickerApi.setStatus(entry.id, 'error', body.error || `HTTP ${resp.status}`);
+      picker.pickerApi.onRetry(entry.id, retryUpload);
+      return false;
+    }
+    picker.pickerApi.setStatus(entry.id, 'ok');
+    return true;
+  }
+
+  async function retryUpload(entry) {
+    picker.pickerApi.setStatus(entry.id, 'uploading');
+    await uploadOne(entry);
+    settleAfterUploads();
+  }
+
+  function settleAfterUploads() {
+    const entries = picker.pickerApi.getEntries();
+    const total = entries.length;
+    const failures = entries.filter(e => e.status !== 'ok').length;
+
+    if (failures === 0) {
+      banner.textContent = 'Alle Bilder hochgeladen. Weiterleitung…';
+      banner.classList.remove('bg-yellow-100', 'text-yellow-900', 'border-yellow-300');
+      banner.classList.add('bg-green-100', 'text-green-900', 'border-green-300');
+      banner.hidden = false;
+      submit.hidden = true;
+      setTimeout(() => { window.location.href = vehicleUrl; }, 800);
+    } else {
+      banner.classList.remove('bg-green-100', 'text-green-900', 'border-green-300');
+      banner.classList.add('bg-yellow-100', 'text-yellow-900', 'border-yellow-300');
+      banner.textContent =
+        `${total - failures} von ${total} Bildern hochgeladen. ` +
+        `Du kannst fehlgeschlagene erneut versuchen oder `;
+      const link = document.createElement('a');
+      link.className = 'underline';
+      link.href = vehicleUrl;
+      link.textContent = 'zur Fahrzeug-Detailseite';
+      banner.appendChild(link);
+      banner.appendChild(document.createTextNode(' weitergehen.'));
+      banner.hidden = false;
+      submit.hidden = true;
+    }
+  }
+})();
+</script>
 {% endblock %}
