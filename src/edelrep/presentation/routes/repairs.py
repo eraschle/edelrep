@@ -1,7 +1,7 @@
 from datetime import date as _date
 
 from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from edelrep.domain.exceptions import InvalidVehicleId, VehicleNotFound
 from edelrep.domain.value_objects import VehicleId
@@ -40,14 +40,19 @@ def create_repair(
     registration_number: str,
     description: str = Form(...),
     date: str = Form(...),
-) -> HTMLResponse | RedirectResponse:
+) -> HTMLResponse | RedirectResponse | JSONResponse:
+    wants_json = "application/json" in request.headers.get("accept", "")
     try:
         vehicle_id = VehicleId(registration_number)
     except InvalidVehicleId as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=404)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     try:
         parsed_date = _date.fromisoformat(date)
     except ValueError as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=400)
         templates = request.app.state.templates
         return templates.TemplateResponse(
             request,
@@ -59,13 +64,23 @@ def create_repair(
             status_code=400,
         )
     try:
-        container.create_repair.execute(
+        repair = container.create_repair.execute(
             vehicle_id=vehicle_id,
             repair_date=parsed_date,
             description=description,
         )
     except VehicleNotFound as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=404)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if wants_json:
+        return JSONResponse(
+            {
+                "repair_id": str(repair.id),
+                "vehicle_url": f"/vehicles/{registration_number}",
+            },
+            status_code=201,
+        )
     return RedirectResponse(
         url=f"/vehicles/{registration_number}",
         status_code=303,
