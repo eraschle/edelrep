@@ -14,7 +14,6 @@ from edelrep.infrastructure.index import (
     SqliteSearchIndex,
     open_index_database,
 )
-from edelrep.infrastructure.index.sqlite_search_index import SqliteSearchIndex
 
 
 def _v(reg: str, vin: str = "X", description: str = "") -> Vehicle:
