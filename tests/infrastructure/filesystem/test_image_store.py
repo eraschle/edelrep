@@ -346,3 +346,56 @@ def test_update_comment_unknown_image_raises(tmp_path: Path) -> None:
     image_repo = FilesystemImageRepository(backend)
     with pytest.raises(ImageNotFound):
         image_repo.update_comment(ULID(), "x")
+
+
+def test_list_for_repair_does_not_duplicate_image_for_comment_sidecar(tmp_path: Path) -> None:
+    """Regression: a per-image comment sidecar `NNNN_<ulid>.json` must not
+    be re-discovered as an image. Otherwise the vehicle detail page shows
+    the same thumbnail twice for any image that has a comment."""
+    backend = LocalFilesystemBackend(tmp_path)
+    vehicle_repo = FilesystemVehicleRepository(backend)
+    repair_repo = FilesystemRepairRepository(backend)
+    image_repo = FilesystemImageRepository(backend)
+    vehicle = _seed_vehicle(vehicle_repo)
+    repair = _seed_repair(repair_repo, vehicle.id)
+
+    img = Image(
+        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
+        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
+        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        comment="brakes",
+    )
+    image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
+
+    images = list(image_repo.list_for_repair(repair.id))
+    assert len(images) == 1
+    assert images[0].comment == "brakes"
+
+
+def test_save_sequence_skips_when_prior_image_has_comment(tmp_path: Path) -> None:
+    """Regression: per-image sidecars must not inflate the existing-image
+    count, otherwise sequence numbers jump on subsequent uploads."""
+    backend = LocalFilesystemBackend(tmp_path)
+    vehicle_repo = FilesystemVehicleRepository(backend)
+    repair_repo = FilesystemRepairRepository(backend)
+    image_repo = FilesystemImageRepository(backend)
+    vehicle = _seed_vehicle(vehicle_repo)
+    repair = _seed_repair(repair_repo, vehicle.id)
+
+    img1 = Image(
+        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
+        filename="a.jpg", mime_type="image/jpeg", size_bytes=4,
+        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        comment="first",
+    )
+    image_repo.save(img1, raw_bytes=b"\x00\x00\x00\x01")
+    img2 = Image(
+        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
+        filename="b.jpg", mime_type="image/jpeg", size_bytes=4,
+        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+    )
+    image_repo.save(img2, raw_bytes=b"\x00\x00\x00\x02")
+
+    dir_path = tmp_path / "12345" / repair_dir_name(repair.date, repair.description)
+    jpg_files = sorted(p.name for p in dir_path.iterdir() if p.suffix == ".jpg")
+    assert jpg_files == [f"0001_{img1.id!s}.jpg", f"0002_{img2.id!s}.jpg"]

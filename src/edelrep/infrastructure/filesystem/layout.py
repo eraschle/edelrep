@@ -96,7 +96,11 @@ def is_repair_sidecar_key(key: str) -> bool:
 
 
 def is_image_key(key: str) -> bool:
-    return bool(_IMAGE_KEY_RE.match(key))
+    if not _IMAGE_KEY_RE.match(key):
+        return False
+    # Per-image comment sidecars (`NNNN_<ulid>.json`) share the prefix
+    # pattern but must not be treated as images.
+    return not key.endswith(".json")
 
 
 _IMAGE_SIDECAR_KEY_RE = re.compile(
