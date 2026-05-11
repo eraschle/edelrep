@@ -7,6 +7,7 @@ from edelrep.domain.entities import Image, Repair, Vehicle
 from edelrep.domain.ports import (
     EmailInbox,
     EmailMessage,
+    FuzzyMatcher,
     ImageRepository,
     RepairRepository,
     SearchIndex,
@@ -126,6 +127,11 @@ class _FakeInbox:
         self.processed.append(message_id)
 
 
+class _FakeFuzzyMatcher:
+    def score(self, query: str, candidate: str) -> float:
+        return 100.0 if query == candidate else 0.0
+
+
 def test_fake_vehicle_repo_satisfies_protocol() -> None:
     repo: VehicleRepository = _FakeVehicleRepo()
     assert isinstance(repo, VehicleRepository)
@@ -154,3 +160,8 @@ def test_fake_search_index_satisfies_protocol() -> None:
 def test_fake_inbox_satisfies_protocol() -> None:
     inbox: EmailInbox = _FakeInbox()
     assert isinstance(inbox, EmailInbox)
+
+
+def test_fake_fuzzy_matcher_satisfies_protocol() -> None:
+    matcher: FuzzyMatcher = _FakeFuzzyMatcher()
+    assert isinstance(matcher, FuzzyMatcher)
