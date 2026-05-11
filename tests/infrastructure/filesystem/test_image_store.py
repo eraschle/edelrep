@@ -1,14 +1,40 @@
+from datetime import UTC, date, datetime
+from pathlib import Path
+
 import pytest
 from ulid import ULID
 
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
 from edelrep.domain.exceptions import ImageNotFound, RepairNotFound
 from edelrep.domain.ports import ImageRepository, StorageBackend
-from edelrep.infrastructure.filesystem.image_store import FilesystemImageRepository
-from edelrep.infrastructure.filesystem.repair_store import FilesystemRepairRepository
-from edelrep.infrastructure.filesystem.vehicle_store import FilesystemVehicleRepository
+from edelrep.domain.value_objects import VehicleId
+from edelrep.infrastructure.filesystem import (
+    FilesystemImageRepository,
+    FilesystemRepairRepository,
+    FilesystemVehicleRepository,
+)
+from edelrep.infrastructure.filesystem.layout import repair_dir_name
+from edelrep.infrastructure.storage import LocalFilesystemBackend
 
 from .conftest import make_image  # type: ignore[import-not-found]
+
+
+def _seed_vehicle(vehicle_repo: FilesystemVehicleRepository) -> Vehicle:
+    vehicle = Vehicle(
+        id=VehicleId("12345"), vin=None, description=None,
+        created_at=datetime.now(UTC),
+    )
+    vehicle_repo.save(vehicle)
+    return vehicle
+
+
+def _seed_repair(repair_repo: FilesystemRepairRepository, vehicle_id: VehicleId) -> Repair:
+    repair = Repair(
+        id=ULID(), vehicle_id=vehicle_id, date=date(2026, 5, 10),
+        description="brakes", created_at=datetime.now(UTC),
+    )
+    repair_repo.save(repair)
+    return repair
 
 
 def _seed(backend: StorageBackend, vehicle: Vehicle, repair: Repair) -> None:
@@ -171,3 +197,115 @@ def test_save_skips_when_repair_dir_has_no_sidecar(
 def test_satisfies_protocol(backend: StorageBackend) -> None:
     repo: ImageRepository = FilesystemImageRepository(backend)
     assert isinstance(repo, ImageRepository)
+
+
+def test_save_persists_comment_in_sidecar(tmp_path: Path) -> None:
+    backend = LocalFilesystemBackend(tmp_path)
+    vehicle_repo = FilesystemVehicleRepository(backend)
+    repair_repo = FilesystemRepairRepository(backend)
+    image_repo = FilesystemImageRepository(backend)
+    vehicle = _seed_vehicle(vehicle_repo)
+    repair = _seed_repair(repair_repo, vehicle.id)
+
+    img = Image(
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="x.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
+        comment="brakes left front",
+    )
+    image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
+
+    sidecar_path = tmp_path / "12345" / repair_dir_name(repair.date, repair.description) / f"0001_{img.id!s}.json"
+    assert sidecar_path.is_file()
+
+
+def test_reconstruct_reads_comment_when_sidecar_present(tmp_path: Path) -> None:
+    backend = LocalFilesystemBackend(tmp_path)
+    vehicle_repo = FilesystemVehicleRepository(backend)
+    repair_repo = FilesystemRepairRepository(backend)
+    image_repo = FilesystemImageRepository(backend)
+    vehicle = _seed_vehicle(vehicle_repo)
+    repair = _seed_repair(repair_repo, vehicle.id)
+
+    img = Image(
+        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
+        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
+        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        comment="hello world",
+    )
+    image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
+    reread = image_repo.get(img.id)
+    assert reread.comment == "hello world"
+
+
+def test_save_without_comment_writes_no_sidecar(tmp_path: Path) -> None:
+    backend = LocalFilesystemBackend(tmp_path)
+    vehicle_repo = FilesystemVehicleRepository(backend)
+    repair_repo = FilesystemRepairRepository(backend)
+    image_repo = FilesystemImageRepository(backend)
+    vehicle = _seed_vehicle(vehicle_repo)
+    repair = _seed_repair(repair_repo, vehicle.id)
+
+    img = Image(
+        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
+        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
+        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+    )
+    image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
+
+    expected_dir = tmp_path / "12345" / repair_dir_name(repair.date, repair.description)
+    json_files = [p for p in expected_dir.iterdir() if p.suffix == ".json" and p.name != "_repair.json"]
+    assert json_files == []
+
+
+def test_update_comment_writes_sidecar(tmp_path: Path) -> None:
+    backend = LocalFilesystemBackend(tmp_path)
+    vehicle_repo = FilesystemVehicleRepository(backend)
+    repair_repo = FilesystemRepairRepository(backend)
+    image_repo = FilesystemImageRepository(backend)
+    vehicle = _seed_vehicle(vehicle_repo)
+    repair = _seed_repair(repair_repo, vehicle.id)
+
+    img = Image(
+        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
+        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
+        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+    )
+    image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
+    image_repo.update_comment(img.id, "added later")
+    assert image_repo.get(img.id).comment == "added later"
+
+
+def test_update_comment_with_none_removes_sidecar(tmp_path: Path) -> None:
+    backend = LocalFilesystemBackend(tmp_path)
+    vehicle_repo = FilesystemVehicleRepository(backend)
+    repair_repo = FilesystemRepairRepository(backend)
+    image_repo = FilesystemImageRepository(backend)
+    vehicle = _seed_vehicle(vehicle_repo)
+    repair = _seed_repair(repair_repo, vehicle.id)
+
+    img = Image(
+        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
+        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
+        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        comment="initial",
+    )
+    image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
+    image_repo.update_comment(img.id, None)
+    assert image_repo.get(img.id).comment is None
+    sidecar_path = tmp_path / "12345" / repair_dir_name(repair.date, repair.description) / f"0001_{img.id!s}.json"
+    assert not sidecar_path.exists()
+
+
+def test_update_comment_unknown_image_raises(tmp_path: Path) -> None:
+    backend = LocalFilesystemBackend(tmp_path)
+    image_repo = FilesystemImageRepository(backend)
+    with pytest.raises(ImageNotFound):
+        image_repo.update_comment(ULID(), "x")

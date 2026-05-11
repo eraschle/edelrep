@@ -12,11 +12,15 @@ from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.layout import (
     image_filename,
     image_key,
+    image_sidecar_key,
     is_image_key,
     is_repair_sidecar_key,
     thumbnail_key,
 )
-from edelrep.infrastructure.filesystem.sidecar import read_backend_sidecar
+from edelrep.infrastructure.filesystem.sidecar import (
+    read_backend_sidecar,
+    write_backend_sidecar,
+)
 
 _IMAGE_FILE_RE = re.compile(r"^(\d{4})_([0-9A-HJKMNP-TV-Z]{26})\.([a-zA-Z0-9]+)$")
 
@@ -24,13 +28,8 @@ _IMAGE_FILE_RE = re.compile(r"^(\d{4})_([0-9A-HJKMNP-TV-Z]{26})\.([a-zA-Z0-9]+)$
 class FilesystemImageRepository:
     """ImageRepository implementation against any StorageBackend.
 
-    Phase 3 read-time defaults (carried forward to Phase 5):
-
-    - ``source = ImageSource.MANUAL`` — Phase 8 inbox correlation pending.
-    - ``captured_at = None`` — Phase 4 EXIF parsing pending.
-    - ``uploaded_at = datetime.now(UTC)`` — the StorageBackend port has
-      no mtime accessor; Phase 5 SQLite index will track upload time
-      properly.
+    Per-image sidecar: ``<reg>/<repair-dir>/NNNN_<ulid>.json`` carries
+    optional fields like ``comment``. Absence = no comment.
     """
 
     def __init__(self, backend: StorageBackend) -> None:
@@ -68,10 +67,12 @@ class FilesystemImageRepository:
         self._backend.write_bytes(image_key(vehicle_id, dir_name, name), raw_bytes)
         if thumbnail_bytes is not None:
             self._backend.write_bytes(thumbnail_key(vehicle_id, dir_name, name), thumbnail_bytes)
-
-    def update_comment(self, image_id: ULID, comment: str | None) -> None:
-        """Stub — full implementation in Task 6 (sidecar handling)."""
-        raise NotImplementedError  # pragma: no cover
+        if image.comment is not None:
+            write_backend_sidecar(
+                self._backend,
+                image_sidecar_key(vehicle_id, dir_name, name),
+                {"comment": image.comment},
+            )
 
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         repair_path = self._find_repair_path(repair_id)
@@ -83,21 +84,35 @@ class FilesystemImageRepository:
         for key in keys:
             yield self._reconstruct(key, repair_id)
 
+    def update_comment(self, image_id: ULID, comment: str | None) -> None:
+        for key in self._backend.list_prefix(""):
+            if not is_image_key(key):
+                continue
+            filename = key.rsplit("/", 1)[1]
+            match = _IMAGE_FILE_RE.match(filename)
+            if match and ULID.from_str(match.group(2)) == image_id:
+                reg_no, dir_name, name = key.split("/", 2)
+                vehicle_id = VehicleId(reg_no)
+                sidecar = image_sidecar_key(vehicle_id, dir_name, name)
+                if comment is None:
+                    if self._backend.exists(sidecar):
+                        self._backend.delete(sidecar)
+                else:
+                    write_backend_sidecar(self._backend, sidecar, {"comment": comment})
+                return
+        raise ImageNotFound(image_id)
+
     def _find_repair_path(self, repair_id: ULID) -> tuple[str, str] | None:
         for key in self._backend.list_prefix(""):
             if not is_repair_sidecar_key(key):
                 continue
             data = read_backend_sidecar(self._backend, key)
             if str(data.get("id")) == str(repair_id):
-                # key shape: "<reg>/<dir_name>/_repair.json"
                 reg_no, dir_name, _ = key.split("/", 2)
-                # dir_name now equals the second segment; the trailing "/_repair.json"
-                # was consumed by split's third part.
                 return reg_no, dir_name
         return None
 
     def _repair_id_for_image_key(self, key: str) -> ULID:
-        # key shape: "<reg>/<dir>/<filename>"
         reg_no, dir_name, _ = key.split("/", 2)
         sidecar = f"{reg_no}/{dir_name}/_repair.json"
         data = read_backend_sidecar(self._backend, sidecar)
@@ -113,6 +128,16 @@ class FilesystemImageRepository:
         raw = self._backend.read_bytes(key)
         thumb_key_value = thumb_candidate if self._backend.exists(thumb_candidate) else None
         mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+        reg_no, dir_name, _ = key.split("/", 2)
+        sidecar = image_sidecar_key(VehicleId(reg_no), dir_name, filename)
+        comment: str | None = None
+        if self._backend.exists(sidecar):
+            data = read_backend_sidecar(self._backend, sidecar)
+            raw_comment = data.get("comment")
+            if isinstance(raw_comment, str):
+                comment = raw_comment
+
         return Image(
             id=image_id,
             repair_id=repair_id,
@@ -124,4 +149,5 @@ class FilesystemImageRepository:
             source=ImageSource.MANUAL,
             uploaded_at=datetime.now(UTC),
             captured_at=None,
+            comment=comment,
         )
