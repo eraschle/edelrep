@@ -71,7 +71,7 @@ class InMemoryRepairRepo:
     def list_for_vehicle(self, vehicle_id: VehicleId) -> Iterable[Repair]:
         return sorted(
             (r for r in self._store.values() if r.vehicle_id == vehicle_id),
-            key=lambda r: r.date,
+            key=lambda r: (r.date, r.created_at),
             reverse=True,
         )
 
