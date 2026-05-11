@@ -97,3 +97,17 @@ def is_repair_sidecar_key(key: str) -> bool:
 
 def is_image_key(key: str) -> bool:
     return bool(_IMAGE_KEY_RE.match(key))
+
+
+_IMAGE_SIDECAR_KEY_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/\d{4}-\d{2}-\d{2}__[a-z0-9-]+/\d{4}_[0-9A-HJKMNP-TV-Z]{26}\.json$"
+)
+
+
+def image_sidecar_key(vehicle_id: VehicleId, dir_name: str, image_filename_value: str) -> str:
+    stem = image_filename_value.rsplit(".", 1)[0]
+    return f"{vehicle_id.registration_number}/{dir_name}/{stem}.json"
+
+
+def is_image_sidecar_key(key: str) -> bool:
+    return bool(_IMAGE_SIDECAR_KEY_RE.match(key))
