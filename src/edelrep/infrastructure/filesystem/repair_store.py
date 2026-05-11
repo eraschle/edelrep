@@ -75,7 +75,7 @@ class FilesystemRepairRepository:
                 continue
             data = read_backend_sidecar(self._backend, key)
             repairs.append(_deserialise(vehicle_id, data))
-        repairs.sort(key=lambda r: r.date, reverse=True)
+        repairs.sort(key=lambda r: (r.date, r.created_at), reverse=True)
         yield from repairs
 
 
