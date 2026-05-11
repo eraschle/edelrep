@@ -147,3 +147,39 @@ def test_image_rejects_negative_size() -> None:
             uploaded_at=_now(),
             captured_at=None,
         )
+
+
+def _aware_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _build_image(*, comment: str | None = None) -> Image:
+    return Image(
+        id=ULID(),
+        repair_id=ULID(),
+        storage_key="",
+        thumbnail_key=None,
+        filename="x.jpg",
+        mime_type="image/jpeg",
+        size_bytes=10,
+        source=ImageSource.MANUAL,
+        uploaded_at=_aware_now(),
+        captured_at=None,
+        comment=comment,
+    )
+
+
+def test_image_default_comment_is_none() -> None:
+    img = _build_image()
+    assert img.comment is None
+
+
+def test_image_accepts_short_comment() -> None:
+    img = _build_image(comment="brakes")
+    assert img.comment == "brakes"
+
+
+def test_image_rejects_comment_over_1000_chars() -> None:
+    too_long = "x" * 1001
+    with pytest.raises(ValueError, match="too long"):
+        _build_image(comment=too_long)
