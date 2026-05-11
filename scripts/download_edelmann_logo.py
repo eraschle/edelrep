@@ -38,9 +38,8 @@ def _fetch(url: str) -> bytes:
 def make_logo_transparent(raw: bytes) -> bytes:
     """Open the raw image bytes, mask near-white pixels to alpha=0, return PNG bytes."""
     src = Image.open(io.BytesIO(raw)).convert("RGBA")
-    pixels = list(src.getdata())
     masked: list[tuple[int, int, int, int]] = []
-    for r, g, b, a in pixels:
+    for r, g, b, a in src.getdata():  # type: ignore[misc]
         if r >= WHITE_THRESHOLD and g >= WHITE_THRESHOLD and b >= WHITE_THRESHOLD:
             masked.append((r, g, b, 0))
         else:
