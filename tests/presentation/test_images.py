@@ -34,9 +34,7 @@ def _seed_repair(container: Container) -> str:
 
 def _seed_vehicle_and_repair(container: Container, registration_number: str) -> None:
     """Create a vehicle and one repair for the given registration number."""
-    container.create_vehicle.execute(
-        registration_number=registration_number, vin=None, description=None
-    )
+    container.create_vehicle.execute(registration_number=registration_number, vin=None, description=None)
     container.create_repair.execute(
         vehicle_id=VehicleId(registration_number),
         repair_date=date(2026, 5, 3),
@@ -46,9 +44,7 @@ def _seed_vehicle_and_repair(container: Container, registration_number: str) -> 
 
 def _first_repair_id(container: Container, registration_number: str) -> str:
     """Return the string ULID of the first repair for the given vehicle."""
-    repairs = list(
-        container.repair_repo.list_for_vehicle(VehicleId(registration_number))
-    )
+    repairs = list(container.repair_repo.list_for_vehicle(VehicleId(registration_number)))
     return str(repairs[0].id)
 
 

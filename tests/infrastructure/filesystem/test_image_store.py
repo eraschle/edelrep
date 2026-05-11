@@ -21,7 +21,9 @@ from .conftest import make_image  # type: ignore[import-not-found]
 
 def _seed_vehicle(vehicle_repo: FilesystemVehicleRepository) -> Vehicle:
     vehicle = Vehicle(
-        id=VehicleId("12345"), vin=None, description=None,
+        id=VehicleId("12345"),
+        vin=None,
+        description=None,
         created_at=datetime.now(UTC),
     )
     vehicle_repo.save(vehicle)
@@ -30,8 +32,11 @@ def _seed_vehicle(vehicle_repo: FilesystemVehicleRepository) -> Vehicle:
 
 def _seed_repair(repair_repo: FilesystemRepairRepository, vehicle_id: VehicleId) -> Repair:
     repair = Repair(
-        id=ULID(), vehicle_id=vehicle_id, date=date(2026, 5, 10),
-        description="brakes", created_at=datetime.now(UTC),
+        id=ULID(),
+        vehicle_id=vehicle_id,
+        date=date(2026, 5, 10),
+        description="brakes",
+        created_at=datetime.now(UTC),
     )
     repair_repo.save(repair)
     return repair
@@ -222,7 +227,9 @@ def test_save_persists_comment_in_sidecar(tmp_path: Path) -> None:
     )
     image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
 
-    sidecar_path = tmp_path / "12345" / repair_dir_name(repair.date, repair.description) / f"0001_{img.id!s}.json"
+    sidecar_path = (
+        tmp_path / "12345" / repair_dir_name(repair.date, repair.description) / f"0001_{img.id!s}.json"
+    )
     assert sidecar_path.is_file()
 
 
@@ -235,9 +242,16 @@ def test_reconstruct_reads_comment_when_sidecar_present(tmp_path: Path) -> None:
     repair = _seed_repair(repair_repo, vehicle.id)
 
     img = Image(
-        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
-        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
-        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="x.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
         comment="hello world",
     )
     image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
@@ -254,9 +268,16 @@ def test_save_without_comment_writes_no_sidecar(tmp_path: Path) -> None:
     repair = _seed_repair(repair_repo, vehicle.id)
 
     img = Image(
-        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
-        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
-        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="x.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
     )
     image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
 
@@ -274,9 +295,16 @@ def test_update_comment_writes_sidecar(tmp_path: Path) -> None:
     repair = _seed_repair(repair_repo, vehicle.id)
 
     img = Image(
-        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
-        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
-        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="x.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
     )
     image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
     image_repo.update_comment(img.id, "added later")
@@ -292,15 +320,24 @@ def test_update_comment_with_none_removes_sidecar(tmp_path: Path) -> None:
     repair = _seed_repair(repair_repo, vehicle.id)
 
     img = Image(
-        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
-        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
-        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="x.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
         comment="initial",
     )
     image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
     image_repo.update_comment(img.id, None)
     assert image_repo.get(img.id).comment is None
-    sidecar_path = tmp_path / "12345" / repair_dir_name(repair.date, repair.description) / f"0001_{img.id!s}.json"
+    sidecar_path = (
+        tmp_path / "12345" / repair_dir_name(repair.date, repair.description) / f"0001_{img.id!s}.json"
+    )
     assert not sidecar_path.exists()
 
 

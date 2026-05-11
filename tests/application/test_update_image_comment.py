@@ -23,13 +23,26 @@ def _bootstrap(tmp_path: Path):
     irepo = FilesystemImageRepository(backend)
     vehicle = Vehicle(id=VehicleId("12345"), vin=None, description=None, created_at=datetime.now(UTC))
     vrepo.save(vehicle)
-    repair = Repair(id=ULID(), vehicle_id=vehicle.id, date=datetime.now(UTC).date(),
-                    description="brakes", created_at=datetime.now(UTC))
+    repair = Repair(
+        id=ULID(),
+        vehicle_id=vehicle.id,
+        date=datetime.now(UTC).date(),
+        description="brakes",
+        created_at=datetime.now(UTC),
+    )
     rrepo.save(repair)
-    img = Image(id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
-                filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
-                source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC),
-                captured_at=None)
+    img = Image(
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="x.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
+    )
     irepo.save(img, raw_bytes=b"\x00\x00\x00\x00")
     return irepo, img
 

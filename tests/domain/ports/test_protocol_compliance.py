@@ -4,6 +4,7 @@ from typing import BinaryIO
 from ulid import ULID
 
 from edelrep.domain.entities import Image, Repair, Vehicle
+from edelrep.domain.exceptions import ImageNotFound
 from edelrep.domain.ports import (
     EmailInbox,
     EmailMessage,
@@ -75,7 +76,6 @@ class _FakeImageRepo:
         return [i for i in self._store.values() if i.repair_id == repair_id]
 
     def update_comment(self, image_id: ULID, comment: str | None) -> None:
-        from edelrep.domain.exceptions import ImageNotFound
         if image_id not in self._store:
             raise ImageNotFound(image_id)
         old = self._store[image_id]

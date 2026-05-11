@@ -33,23 +33,36 @@ def test_live_index_keeps_image_indexed_on_sidecar_write(tmp_path: Path) -> None
     vehicle = Vehicle(id=VehicleId("12345"), vin=None, description=None, created_at=datetime.now(UTC))
     vrepo.save(vehicle)
     repair = Repair(
-        id=ULID(), vehicle_id=vehicle.id, date=datetime.now(UTC).date(),
-        description="brakes", created_at=datetime.now(UTC),
+        id=ULID(),
+        vehicle_id=vehicle.id,
+        date=datetime.now(UTC).date(),
+        description="brakes",
+        created_at=datetime.now(UTC),
     )
     rrepo.save(repair)
     img = Image(
-        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
-        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
-        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC),
-        captured_at=None, comment=None,
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="x.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
+        comment=None,
     )
     irepo.save(img, raw_bytes=b"\x00\x00\x00\x00")
 
     conn, lock = open_index_database(tmp_path / "index.db")
     projector = SqliteIndexProjector(conn, lock)
     live = LiveIndex(
-        storage_root=storage, projector=projector,
-        vehicle_repo=vrepo, repair_repo=rrepo, image_repo=irepo,
+        storage_root=storage,
+        projector=projector,
+        vehicle_repo=vrepo,
+        repair_repo=rrepo,
+        image_repo=irepo,
         debounce_seconds=0.05,
     )
     live.start()

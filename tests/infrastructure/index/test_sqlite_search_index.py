@@ -131,16 +131,21 @@ def test_list_vehicles_by_activity_orders_by_latest_repair(tmp_path: Path) -> No
     projector = SqliteIndexProjector(conn, lock)
     index = SqliteSearchIndex(conn, lock)
     try:
-        old = Vehicle(id=VehicleId("AAA"), vin=None, description=None,
-                      created_at=datetime(2026, 1, 1, tzinfo=UTC))
-        new = Vehicle(id=VehicleId("BBB"), vin=None, description=None,
-                      created_at=datetime(2026, 1, 1, tzinfo=UTC))
+        old = Vehicle(
+            id=VehicleId("AAA"), vin=None, description=None, created_at=datetime(2026, 1, 1, tzinfo=UTC)
+        )
+        new = Vehicle(
+            id=VehicleId("BBB"), vin=None, description=None, created_at=datetime(2026, 1, 1, tzinfo=UTC)
+        )
         projector.upsert_vehicle(old)
         projector.upsert_vehicle(new)
         time.sleep(0.01)
         recent_repair = Repair(
-            id=ULID(), vehicle_id=new.id, date=date(2026, 5, 10),
-            description="brakes", created_at=datetime.now(UTC),
+            id=ULID(),
+            vehicle_id=new.id,
+            date=date(2026, 5, 10),
+            description="brakes",
+            created_at=datetime.now(UTC),
         )
         projector.upsert_repair(recent_repair)
 
@@ -165,10 +170,12 @@ def test_list_vehicles_by_activity_uses_created_at_when_no_activity(tmp_path: Pa
     projector = SqliteIndexProjector(conn, lock)
     index = SqliteSearchIndex(conn, lock)
     try:
-        older = Vehicle(id=VehicleId("AAA"), vin=None, description=None,
-                        created_at=datetime(2026, 1, 1, tzinfo=UTC))
-        newer = Vehicle(id=VehicleId("BBB"), vin=None, description=None,
-                        created_at=datetime(2026, 5, 1, tzinfo=UTC))
+        older = Vehicle(
+            id=VehicleId("AAA"), vin=None, description=None, created_at=datetime(2026, 1, 1, tzinfo=UTC)
+        )
+        newer = Vehicle(
+            id=VehicleId("BBB"), vin=None, description=None, created_at=datetime(2026, 5, 1, tzinfo=UTC)
+        )
         projector.upsert_vehicle(older)
         projector.upsert_vehicle(newer)
         results = list(index.list_vehicles_by_activity(limit=10))

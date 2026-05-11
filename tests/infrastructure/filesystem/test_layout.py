@@ -190,9 +190,7 @@ def test_image_sidecar_key_replaces_extension_with_json() -> None:
 
 
 def test_is_image_sidecar_key_accepts_valid() -> None:
-    assert is_image_sidecar_key(
-        "12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json"
-    )
+    assert is_image_sidecar_key("12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json")
 
 
 def test_is_image_sidecar_key_rejects_repair_sidecar() -> None:
@@ -200,6 +198,4 @@ def test_is_image_sidecar_key_rejects_repair_sidecar() -> None:
 
 
 def test_is_image_sidecar_key_rejects_image_jpg() -> None:
-    assert not is_image_sidecar_key(
-        "12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"
-    )
+    assert not is_image_sidecar_key("12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg")

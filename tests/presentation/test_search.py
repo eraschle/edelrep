@@ -1,5 +1,9 @@
+from datetime import UTC, datetime
+
 from fastapi.testclient import TestClient
 
+from edelrep.domain.entities import Vehicle
+from edelrep.domain.value_objects import VehicleId
 from edelrep.presentation.container import Container
 
 
@@ -25,15 +29,22 @@ def test_suggestions_returns_matches(client: TestClient, container: Container) -
 
 
 def test_search_page_initial_renders_all_vehicles(client: TestClient, container: Container) -> None:
-    from datetime import UTC, datetime
-    from edelrep.domain.entities import Vehicle
-    from edelrep.domain.value_objects import VehicleId
-    container.vehicle_repo.save(Vehicle(
-        id=VehicleId("AAA"), vin=None, description=None, created_at=datetime(2026, 1, 1, tzinfo=UTC),
-    ))
-    container.vehicle_repo.save(Vehicle(
-        id=VehicleId("BBB"), vin=None, description=None, created_at=datetime(2026, 1, 1, tzinfo=UTC),
-    ))
+    container.vehicle_repo.save(
+        Vehicle(
+            id=VehicleId("AAA"),
+            vin=None,
+            description=None,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+    )
+    container.vehicle_repo.save(
+        Vehicle(
+            id=VehicleId("BBB"),
+            vin=None,
+            description=None,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+    )
     container.projector.full_rebuild(container.vehicle_repo, container.repair_repo, container.image_repo)
     r = client.get("/search")
     assert r.status_code == 200
@@ -43,12 +54,14 @@ def test_search_page_initial_renders_all_vehicles(client: TestClient, container:
 
 
 def test_search_suggestions_empty_query_returns_all(client: TestClient, container: Container) -> None:
-    from datetime import UTC, datetime
-    from edelrep.domain.entities import Vehicle
-    from edelrep.domain.value_objects import VehicleId
-    container.vehicle_repo.save(Vehicle(
-        id=VehicleId("XYZ"), vin=None, description=None, created_at=datetime.now(UTC),
-    ))
+    container.vehicle_repo.save(
+        Vehicle(
+            id=VehicleId("XYZ"),
+            vin=None,
+            description=None,
+            created_at=datetime.now(UTC),
+        )
+    )
     container.projector.full_rebuild(container.vehicle_repo, container.repair_repo, container.image_repo)
     r = client.get("/search/suggestions?q=")
     assert r.status_code == 200
@@ -56,12 +69,14 @@ def test_search_suggestions_empty_query_returns_all(client: TestClient, containe
 
 
 def test_search_suggestions_fuzzy_typo_finds_vehicle(client: TestClient, container: Container) -> None:
-    from datetime import UTC, datetime
-    from edelrep.domain.entities import Vehicle
-    from edelrep.domain.value_objects import VehicleId
-    container.vehicle_repo.save(Vehicle(
-        id=VehicleId("12345"), vin=None, description=None, created_at=datetime.now(UTC),
-    ))
+    container.vehicle_repo.save(
+        Vehicle(
+            id=VehicleId("12345"),
+            vin=None,
+            description=None,
+            created_at=datetime.now(UTC),
+        )
+    )
     container.projector.full_rebuild(container.vehicle_repo, container.repair_repo, container.image_repo)
     r = client.get("/search/suggestions?q=12354")
     assert r.status_code == 200

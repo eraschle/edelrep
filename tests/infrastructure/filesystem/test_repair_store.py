@@ -177,17 +177,22 @@ def test_list_for_vehicle_same_date_orders_by_created_at_desc(tmp_path: Path) ->
     backend = LocalFilesystemBackend(tmp_path)
     vehicle_repo = FilesystemVehicleRepository(backend)
     repair_repo = FilesystemRepairRepository(backend)
-    vehicle = Vehicle(id=VehicleId("12345"), vin=None, description=None,
-                      created_at=datetime.now(UTC))
+    vehicle = Vehicle(id=VehicleId("12345"), vin=None, description=None, created_at=datetime.now(UTC))
     vehicle_repo.save(vehicle)
 
     earlier = Repair(
-        id=ULID(), vehicle_id=vehicle.id, date=date(2026, 5, 10),
-        description="brakes", created_at=datetime(2026, 5, 10, 10, 0, tzinfo=UTC),
+        id=ULID(),
+        vehicle_id=vehicle.id,
+        date=date(2026, 5, 10),
+        description="brakes",
+        created_at=datetime(2026, 5, 10, 10, 0, tzinfo=UTC),
     )
     later = Repair(
-        id=ULID(), vehicle_id=vehicle.id, date=date(2026, 5, 10),
-        description="oil change", created_at=datetime(2026, 5, 10, 15, 0, tzinfo=UTC),
+        id=ULID(),
+        vehicle_id=vehicle.id,
+        date=date(2026, 5, 10),
+        description="oil change",
+        created_at=datetime(2026, 5, 10, 15, 0, tzinfo=UTC),
     )
     repair_repo.save(earlier)
     repair_repo.save(later)
