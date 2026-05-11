@@ -26,27 +26,29 @@
   <ul data-picker-list class="space-y-2"></ul>
 
   <template data-picker-entry-template>
-    <li class="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-3 shadow-sm"
+    <li class="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-2 items-start bg-white border border-slate-200 rounded-xl p-3 shadow-sm"
         data-entry>
       <img data-entry-thumb alt=""
-           class="h-14 w-14 object-cover rounded-lg bg-slate-100 ring-1 ring-slate-200">
-      <div class="flex-1 min-w-0">
+           class="row-span-2 h-14 w-14 object-cover rounded-lg bg-slate-100 ring-1 ring-slate-200">
+      <div class="min-w-0">
         <p data-entry-filename class="font-medium text-sm truncate"></p>
         <p data-entry-meta class="text-xs text-slate-500 mt-0.5"></p>
         <p data-entry-status class="mt-1.5"></p>
-        <textarea data-entry-comment maxlength="1000" rows="1"
-                  placeholder="Kommentar (optional)"
-                  class="mt-2 w-full text-sm border border-slate-200 rounded-md px-2 py-1 resize-y"></textarea>
       </div>
-      <button type="button" data-entry-retry hidden
-              class="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors">
-        {{ icon("rotate-cw", "w-4 h-4") }} Erneut
-      </button>
-      <button type="button" data-entry-remove
-              class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-              aria-label="Entfernen">
-        {{ icon("trash", "w-4 h-4") }}
-      </button>
+      <div class="flex items-start gap-1">
+        <button type="button" data-entry-retry hidden
+                class="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors">
+          {{ icon("rotate-cw", "w-4 h-4") }} Erneut
+        </button>
+        <button type="button" data-entry-remove
+                class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                aria-label="Entfernen">
+          {{ icon("trash", "w-4 h-4") }}
+        </button>
+      </div>
+      <textarea data-entry-comment maxlength="1000" rows="1"
+                placeholder="Kommentar (optional)"
+                class="col-span-2 w-full text-sm border border-slate-200 rounded-md px-2 py-1 resize-y"></textarea>
     </li>
   </template>
 </div>
