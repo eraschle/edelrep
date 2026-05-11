@@ -12,12 +12,12 @@
 
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
     <button type="button" data-picker-trigger="camera"
-            class="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 px-4 py-3 rounded-xl font-medium shadow-sm transition-colors">
-      {{ icon("camera", "w-5 h-5 text-slate-600") }} Foto aufnehmen
+            class="inline-flex items-center justify-center gap-2 bg-white hover:bg-stone-50 text-stone-900 border border-stone-300 px-4 py-3 rounded-xl font-medium shadow-sm transition-colors">
+      {{ icon("camera", "w-5 h-5 text-stone-600") }} Foto aufnehmen
     </button>
     <button type="button" data-picker-trigger="gallery"
-            class="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 px-4 py-3 rounded-xl font-medium shadow-sm transition-colors">
-      {{ icon("image-plus", "w-5 h-5 text-slate-600") }} Bilder auswählen
+            class="inline-flex items-center justify-center gap-2 bg-white hover:bg-stone-50 text-stone-900 border border-stone-300 px-4 py-3 rounded-xl font-medium shadow-sm transition-colors">
+      {{ icon("image-plus", "w-5 h-5 text-stone-600") }} Bilder auswählen
     </button>
   </div>
 
@@ -26,29 +26,29 @@
   <ul data-picker-list class="space-y-2"></ul>
 
   <template data-picker-entry-template>
-    <li class="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-2 items-start bg-white border border-slate-200 rounded-xl p-3 shadow-sm"
+    <li class="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-2 items-start bg-white border border-stone-200 rounded-xl p-3 shadow-sm"
         data-entry>
       <img data-entry-thumb alt=""
-           class="h-14 w-14 object-cover rounded-lg bg-slate-100 ring-1 ring-slate-200">
+           class="h-14 w-14 object-cover rounded-lg bg-stone-100 ring-1 ring-stone-200">
       <div class="min-w-0">
         <p data-entry-filename class="font-medium text-sm truncate"></p>
-        <p data-entry-meta class="text-xs text-slate-500 mt-0.5"></p>
+        <p data-entry-meta class="text-xs text-stone-500 mt-0.5"></p>
         <p data-entry-status class="mt-1.5"></p>
       </div>
       <div class="flex items-start gap-1">
         <button type="button" data-entry-retry hidden
-                class="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                class="inline-flex items-center gap-1 text-sm text-[#ac8a64] hover:text-[#8a6f4f] font-medium transition-colors">
           {{ icon("rotate-cw", "w-4 h-4") }} Erneut
         </button>
         <button type="button" data-entry-remove
-                class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                 aria-label="Entfernen">
           {{ icon("trash", "w-4 h-4") }}
         </button>
       </div>
       <textarea data-entry-comment maxlength="1000" rows="1"
                 placeholder="Kommentar (optional)"
-                class="col-span-3 w-full text-sm border border-slate-200 rounded-md px-2 py-1 resize-y"></textarea>
+                class="col-span-3 w-full text-sm border border-stone-200 rounded-md px-2 py-1 resize-y"></textarea>
     </li>
   </template>
 </div>
@@ -185,7 +185,7 @@
 
     function setStatusBadge(statusEl, status, message) {
       const map = {
-        pending:   { iconHtml: ICONS.clock,  label: 'wartet',       cls: 'bg-slate-100 text-slate-700 ring-slate-200' },
+        pending:   { iconHtml: ICONS.clock,  label: 'wartet',       cls: 'bg-stone-100 text-stone-700 ring-stone-200' },
         uploading: { iconHtml: ICONS.loader, label: 'lädt hoch…',  cls: 'bg-blue-50 text-blue-700 ring-blue-200' },
         ok:        { iconHtml: ICONS.check,  label: 'hochgeladen',  cls: 'bg-green-50 text-green-700 ring-green-200' },
         error:     { iconHtml: ICONS.alert,  label: 'Fehler',       cls: 'bg-red-50 text-red-700 ring-red-200' },
