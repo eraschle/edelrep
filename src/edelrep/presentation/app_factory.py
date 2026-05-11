@@ -3,12 +3,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from edelrep.presentation.container import Container
 from edelrep.presentation.routes import home, images, inbox, repairs, search, vehicles
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
+_STATIC_DIR = Path(__file__).parent / "static"
 
 
 @asynccontextmanager
@@ -39,5 +41,7 @@ def create_app(container: Container) -> FastAPI:
     app.include_router(repairs.router)
     app.include_router(images.router)
     app.include_router(inbox.router)
+
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
     return app
