@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from pydantic import BaseModel, Field
 from ulid import ULID
 
 from edelrep.domain.exceptions import (
@@ -13,6 +14,10 @@ from edelrep.domain.value_objects import VehicleId
 from edelrep.presentation.dependencies import ContainerDep
 
 router = APIRouter()
+
+
+class CommentPayload(BaseModel):
+    comment: str | None = Field(default=None, max_length=1000)
 
 
 @router.get(
@@ -49,6 +54,7 @@ def upload_image(
     registration_number: str,
     repair_id: str,
     image: UploadFile,
+    comment: str = Form(""),
 ) -> RedirectResponse | JSONResponse:
     wants_json = "application/json" in request.headers.get("accept", "")
     try:
@@ -63,6 +69,7 @@ def upload_image(
             repair_id=rid,
             raw_bytes=raw,
             filename=image.filename or "upload.jpg",
+            comment=comment or None,
         )
     except RepairNotFound as exc:
         if wants_json:
@@ -82,6 +89,25 @@ def upload_image(
         url=f"/vehicles/{registration_number}",
         status_code=303,
     )
+
+
+@router.patch("/images/{image_id}/comment")
+def patch_image_comment(
+    container: ContainerDep,
+    image_id: str,
+    payload: CommentPayload,
+) -> JSONResponse:
+    try:
+        iid = ULID.from_str(image_id)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=404)
+    try:
+        updated = container.update_image_comment.execute(iid, payload.comment)
+    except ImageNotFound as exc:
+        return JSONResponse({"error": str(exc)}, status_code=404)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=422)
+    return JSONResponse({"image_id": str(updated.id), "comment": updated.comment})
 
 
 @router.get("/images/{image_id}/raw")

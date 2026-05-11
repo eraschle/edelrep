@@ -17,6 +17,11 @@ def _make_jpeg() -> bytes:
     return buf.getvalue()
 
 
+def _jpeg_bytes() -> bytes:
+    """Alias used by comment-related tests."""
+    return _make_jpeg()
+
+
 def _seed_repair(container: Container) -> str:
     container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
     repair = container.create_repair.execute(
@@ -25,6 +30,26 @@ def _seed_repair(container: Container) -> str:
         description="brakes",
     )
     return str(repair.id)
+
+
+def _seed_vehicle_and_repair(container: Container, registration_number: str) -> None:
+    """Create a vehicle and one repair for the given registration number."""
+    container.create_vehicle.execute(
+        registration_number=registration_number, vin=None, description=None
+    )
+    container.create_repair.execute(
+        vehicle_id=VehicleId(registration_number),
+        repair_date=date(2026, 5, 3),
+        description="brakes",
+    )
+
+
+def _first_repair_id(container: Container, registration_number: str) -> str:
+    """Return the string ULID of the first repair for the given vehicle."""
+    repairs = list(
+        container.repair_repo.list_for_vehicle(VehicleId(registration_number))
+    )
+    return str(repairs[0].id)
 
 
 def test_upload_form_renders(client: TestClient, container: Container) -> None:
@@ -223,4 +248,69 @@ def test_thumbnail_returns_404_when_image_has_no_thumbnail(client: TestClient, c
     )
     container.image_repo.save(img, raw_bytes=b"\xff\xd8\xff\xd9")
     r = client.get(f"/images/{iid}/thumbnail")
+    assert r.status_code == 404
+
+
+def test_upload_image_with_comment_form_field(client: TestClient, container: Container) -> None:
+    _seed_vehicle_and_repair(container, "12345")
+    repair_id = _first_repair_id(container, "12345")
+    r = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("x.jpg", _jpeg_bytes(), "image/jpeg")},
+        data={"comment": "brakes left"},
+        headers={"Accept": "application/json"},
+    )
+    assert r.status_code == 201
+    image_id = r.json()["image_id"]
+    img = container.image_repo.get(ULID.from_str(image_id))
+    assert img.comment == "brakes left"
+
+
+def test_patch_image_comment_sets_and_returns_value(client: TestClient, container: Container) -> None:
+    _seed_vehicle_and_repair(container, "12345")
+    repair_id = _first_repair_id(container, "12345")
+    upload = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("x.jpg", _jpeg_bytes(), "image/jpeg")},
+        headers={"Accept": "application/json"},
+    )
+    image_id = upload.json()["image_id"]
+    r = client.patch(f"/images/{image_id}/comment", json={"comment": "updated"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["comment"] == "updated"
+    assert container.image_repo.get(ULID.from_str(image_id)).comment == "updated"
+
+
+def test_patch_image_comment_null_clears(client: TestClient, container: Container) -> None:
+    _seed_vehicle_and_repair(container, "12345")
+    repair_id = _first_repair_id(container, "12345")
+    upload = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("x.jpg", _jpeg_bytes(), "image/jpeg")},
+        data={"comment": "initial"},
+        headers={"Accept": "application/json"},
+    )
+    image_id = upload.json()["image_id"]
+    r = client.patch(f"/images/{image_id}/comment", json={"comment": None})
+    assert r.status_code == 200
+    assert r.json()["comment"] is None
+    assert container.image_repo.get(ULID.from_str(image_id)).comment is None
+
+
+def test_patch_image_comment_too_long_returns_422(client: TestClient, container: Container) -> None:
+    _seed_vehicle_and_repair(container, "12345")
+    repair_id = _first_repair_id(container, "12345")
+    upload = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("x.jpg", _jpeg_bytes(), "image/jpeg")},
+        headers={"Accept": "application/json"},
+    )
+    image_id = upload.json()["image_id"]
+    r = client.patch(f"/images/{image_id}/comment", json={"comment": "x" * 1001})
+    assert r.status_code == 422
+
+
+def test_patch_unknown_image_comment_returns_404(client: TestClient) -> None:
+    r = client.patch(f"/images/{ULID()!s}/comment", json={"comment": "x"})
     assert r.status_code == 404
