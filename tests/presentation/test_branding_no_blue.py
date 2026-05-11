@@ -3,8 +3,6 @@ must not reappear in rendered pages. The only exception is the upload
 status badge that uses bg-blue-50/text-blue-700/ring-blue-200 to signal
 an in-progress upload — these stay as a functional indicator."""
 
-from __future__ import annotations
-
 import re
 from datetime import UTC, date, datetime
 
