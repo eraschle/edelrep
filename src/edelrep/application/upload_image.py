@@ -45,6 +45,7 @@ class UploadImageUseCase:
         raw_bytes: bytes,
         filename: str,
         source: ImageSource = ImageSource.MANUAL,
+        comment: str | None = None,
     ) -> Image:
         # Raises RepairNotFound if the repair doesn't exist.
         self._repair_repo.get(repair_id)
@@ -61,10 +62,12 @@ class UploadImageUseCase:
             if hashlib.sha256(existing_raw).digest() == incoming_hash:
                 raise DuplicateImage(repair_id=repair_id, existing_filename=existing.filename)
 
+        normalised_comment = (comment.strip() if comment else None) or None
+
         image = Image(
             id=ULID(),
             repair_id=repair_id,
-            storage_key="",  # populated by the repository on save/get
+            storage_key="",
             thumbnail_key=None,
             filename=filename,
             mime_type=processed.mime_type,
@@ -72,6 +75,7 @@ class UploadImageUseCase:
             source=source,
             uploaded_at=datetime.now(UTC),
             captured_at=processed.captured_at,
+            comment=normalised_comment,
         )
 
         self._image_repo.save(
