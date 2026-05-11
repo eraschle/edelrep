@@ -11,6 +11,8 @@
   </li>
 {% endfor %}
 </ul>
+{% elif is_empty_filter %}
+<p class="text-slate-500 text-center py-8">Keine Treffer.</p>
 {% else %}
-<p class="text-slate-500 text-center py-8">Keine Fahrzeuge gefunden.</p>
+<p class="text-slate-500 text-center py-8">Noch keine Fahrzeuge angelegt.</p>
 {% endif %}

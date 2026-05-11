@@ -7,9 +7,14 @@ router = APIRouter()
 
 
 @router.get("/search", response_class=HTMLResponse)
-def search_page(request: Request) -> HTMLResponse:
+def search_page(request: Request, container: ContainerDep) -> HTMLResponse:
     templates = request.app.state.templates
-    return templates.TemplateResponse(request, "search.html", {"results": []})
+    results = container.search_vehicle.execute("", limit=200)
+    return templates.TemplateResponse(
+        request,
+        "search.html",
+        {"results": results, "is_empty_filter": False},
+    )
 
 
 @router.get("/search/suggestions", response_class=HTMLResponse)
@@ -19,9 +24,9 @@ def suggestions(
     q: str = "",
 ) -> HTMLResponse:
     templates = request.app.state.templates
-    results = list(container.search_vehicle.execute(q)) if q else []
+    results = container.search_vehicle.execute(q)
     return templates.TemplateResponse(
         request,
         "_vehicle_search_results.html",
-        {"results": results},
+        {"results": results, "is_empty_filter": bool(q.strip())},
     )
