@@ -4,7 +4,7 @@
 {% block content %}
 <h1 class="text-3xl font-bold mb-6 tracking-tight">Fahrzeug suchen</h1>
 <div class="relative mb-6">
-  <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 pointer-events-none">
+  <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-stone-400 pointer-events-none">
     {{ icon("search", "w-5 h-5") }}
   </span>
   <input type="search"
@@ -13,7 +13,7 @@
          hx-get="/search/suggestions"
          hx-trigger="keyup changed delay:200ms, search"
          hx-target="#suggestions"
-         class="w-full pl-12 pr-4 py-4 text-lg bg-white border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
+         class="w-full pl-12 pr-4 py-4 text-lg bg-white border border-stone-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b59775] focus:border-[#b59775] transition-shadow">
 </div>
 <div id="suggestions">
   {% include "_vehicle_search_results.html" %}
