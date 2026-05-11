@@ -34,6 +34,9 @@
         <p data-entry-filename class="font-medium text-sm truncate"></p>
         <p data-entry-meta class="text-xs text-slate-500 mt-0.5"></p>
         <p data-entry-status class="mt-1.5"></p>
+        <textarea data-entry-comment maxlength="1000" rows="1"
+                  placeholder="Kommentar (optional)"
+                  class="mt-2 w-full text-sm border border-slate-200 rounded-md px-2 py-1 resize-y"></textarea>
       </div>
       <button type="button" data-entry-retry hidden
               class="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors">
@@ -110,7 +113,8 @@
       const { li: el, thumbUrl } = renderEntry(file, id);
       const entry = { id, file, status: 'pending', el, thumbUrl,
                       statusEl: el.querySelector('[data-entry-status]'),
-                      retryBtn: el.querySelector('[data-entry-retry]') };
+                      retryBtn: el.querySelector('[data-entry-retry]'),
+                      commentEl: el.querySelector('[data-entry-comment]') };
       entries.push(entry);
       setStatusBadge(entry.statusEl, 'pending');
       return 'ok';
@@ -193,7 +197,13 @@
     }
 
     root.pickerApi = {
-      getEntries: () => entries.slice(),
+      getEntries: () => entries.map(e => ({
+        id: e.id,
+        file: e.file,
+        status: e.status,
+        commentEl: e.commentEl,
+        comment: e.commentEl ? e.commentEl.value : '',
+      })),
       setStatus(id, status, message) {
         const e = entries.find(x => x.id === id);
         if (!e) return;
