@@ -2,6 +2,7 @@
 must not reappear in rendered pages. The only exception is the upload
 status badge that uses bg-blue-50/text-blue-700/ring-blue-200 to signal
 an in-progress upload — these stay as a functional indicator."""
+
 from __future__ import annotations
 
 import re
@@ -32,14 +33,21 @@ def _find_slate(text: str) -> set[str]:
 def _seed_full(container: Container) -> None:
     """Create one vehicle + one repair so the detail page is non-trivial."""
     vehicle = Vehicle(
-        id=VehicleId("12345"), vin="WDB1", description="Kran",
+        id=VehicleId("12345"),
+        vin="WDB1",
+        description="Kran",
         created_at=datetime.now(UTC),
     )
     container.vehicle_repo.save(vehicle)
-    container.repair_repo.save(Repair(
-        id=ULID(), vehicle_id=vehicle.id, date=date(2026, 5, 11),
-        description="brakes", created_at=datetime.now(UTC),
-    ))
+    container.repair_repo.save(
+        Repair(
+            id=ULID(),
+            vehicle_id=vehicle.id,
+            date=date(2026, 5, 11),
+            description="brakes",
+            created_at=datetime.now(UTC),
+        )
+    )
     container.projector.full_rebuild(container.vehicle_repo, container.repair_repo, container.image_repo)
 
 

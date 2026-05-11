@@ -8,6 +8,7 @@ Output:
 Re-run nach Marken-Update auf der Edelmann-Site — Output wird ins Repo
 committed, kein Runtime-Netzwerk.
 """
+
 from __future__ import annotations
 
 import io

@@ -62,9 +62,7 @@ def test_vehicle_detail_modal_initially_hidden_without_flex_conflict(
     assert classes_match, "modal must have a class attribute"
     classes = classes_match.group(1).split()
 
-    assert "hidden" in classes, (
-        "modal must include the `hidden` utility class for its initial state"
-    )
+    assert "hidden" in classes, "modal must include the `hidden` utility class for its initial state"
     assert "flex" not in classes, (
         "initial modal must not carry `flex` in its class list — it overrides "
         "the `hidden` attribute and leaves the modal visible from page load"

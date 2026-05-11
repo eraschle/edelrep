@@ -360,9 +360,16 @@ def test_list_for_repair_does_not_duplicate_image_for_comment_sidecar(tmp_path: 
     repair = _seed_repair(repair_repo, vehicle.id)
 
     img = Image(
-        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
-        filename="x.jpg", mime_type="image/jpeg", size_bytes=4,
-        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="x.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
         comment="brakes",
     )
     image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
@@ -383,16 +390,30 @@ def test_save_sequence_skips_when_prior_image_has_comment(tmp_path: Path) -> Non
     repair = _seed_repair(repair_repo, vehicle.id)
 
     img1 = Image(
-        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
-        filename="a.jpg", mime_type="image/jpeg", size_bytes=4,
-        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="a.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
         comment="first",
     )
     image_repo.save(img1, raw_bytes=b"\x00\x00\x00\x01")
     img2 = Image(
-        id=ULID(), repair_id=repair.id, storage_key="", thumbnail_key=None,
-        filename="b.jpg", mime_type="image/jpeg", size_bytes=4,
-        source=ImageSource.MANUAL, uploaded_at=datetime.now(UTC), captured_at=None,
+        id=ULID(),
+        repair_id=repair.id,
+        storage_key="",
+        thumbnail_key=None,
+        filename="b.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime.now(UTC),
+        captured_at=None,
     )
     image_repo.save(img2, raw_bytes=b"\x00\x00\x00\x02")
 
