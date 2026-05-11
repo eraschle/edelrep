@@ -57,6 +57,10 @@ class SqliteSearchIndex:
             )
             return [_row_to_vehicle(row) for row in cur.fetchall()]
 
+    def list_vehicles_by_activity(self, limit: int) -> Iterable[Vehicle]:
+        """Stub — full implementation in Task 8 (SQL-based activity ranking)."""
+        raise NotImplementedError  # pragma: no cover
+
     def upsert_vehicle(self, vehicle: Vehicle) -> None:
         with self._lock:
             self._conn.execute(
