@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from pathlib import Path
 
 import pytest
 from ulid import ULID
@@ -11,8 +12,8 @@ from edelrep.domain.exceptions import (
 )
 from edelrep.domain.ports import RepairRepository, StorageBackend
 from edelrep.domain.value_objects import VehicleId
-from edelrep.infrastructure.filesystem.repair_store import FilesystemRepairRepository
-from edelrep.infrastructure.filesystem.vehicle_store import FilesystemVehicleRepository
+from edelrep.infrastructure.filesystem import FilesystemRepairRepository, FilesystemVehicleRepository
+from edelrep.infrastructure.storage import LocalFilesystemBackend
 
 
 def _seed_vehicle(backend: StorageBackend, sample_vehicle: Vehicle) -> None:
@@ -170,3 +171,32 @@ def test_update_filters_mismatched_id_during_scan(
     assert repo.get(other.id) == updated_other
     # The first repair must remain unchanged.
     assert repo.get(sample_repair.id).created_at == sample_repair.created_at
+
+
+def test_list_for_vehicle_same_date_orders_by_created_at_desc(tmp_path: Path) -> None:
+    backend = LocalFilesystemBackend(tmp_path)
+    vehicle_repo = FilesystemVehicleRepository(backend)
+    repair_repo = FilesystemRepairRepository(backend)
+    vehicle = Vehicle(id=VehicleId("12345"), vin=None, description=None, created_at=datetime.now(UTC))
+    vehicle_repo.save(vehicle)
+
+    earlier = Repair(
+        id=ULID(),
+        vehicle_id=vehicle.id,
+        date=date(2026, 5, 10),
+        description="brakes",
+        created_at=datetime(2026, 5, 10, 10, 0, tzinfo=UTC),
+    )
+    later = Repair(
+        id=ULID(),
+        vehicle_id=vehicle.id,
+        date=date(2026, 5, 10),
+        description="oil change",
+        created_at=datetime(2026, 5, 10, 15, 0, tzinfo=UTC),
+    )
+    repair_repo.save(earlier)
+    repair_repo.save(later)
+
+    results = list(repair_repo.list_for_vehicle(vehicle.id))
+    assert results[0].description == "oil change"
+    assert results[1].description == "brakes"

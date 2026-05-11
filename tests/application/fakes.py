@@ -71,7 +71,7 @@ class InMemoryRepairRepo:
     def list_for_vehicle(self, vehicle_id: VehicleId) -> Iterable[Repair]:
         return sorted(
             (r for r in self._store.values() if r.vehicle_id == vehicle_id),
-            key=lambda r: r.date,
+            key=lambda r: (r.date, r.created_at),
             reverse=True,
         )
 
@@ -106,11 +106,31 @@ class InMemoryImageRepo:
             source=image.source,
             uploaded_at=image.uploaded_at,
             captured_at=image.captured_at,
+            comment=image.comment,
         )
         self._store[image.id] = (populated, raw_bytes, thumbnail_bytes)
 
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         return [entry[0] for entry in self._store.values() if entry[0].repair_id == repair_id]
+
+    def update_comment(self, image_id: ULID, comment: str | None) -> None:
+        if image_id not in self._store:
+            raise ImageNotFound(image_id)
+        img, raw, thumb = self._store[image_id]
+        updated = Image(
+            id=img.id,
+            repair_id=img.repair_id,
+            storage_key=img.storage_key,
+            thumbnail_key=img.thumbnail_key,
+            filename=img.filename,
+            mime_type=img.mime_type,
+            size_bytes=img.size_bytes,
+            source=img.source,
+            uploaded_at=img.uploaded_at,
+            captured_at=img.captured_at,
+            comment=comment,
+        )
+        self._store[image_id] = (updated, raw, thumb)
 
     # Convenience helpers for use-case integration tests:
     def raw_bytes_for(self, image_id: ULID) -> bytes:

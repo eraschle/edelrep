@@ -4,9 +4,11 @@ from typing import BinaryIO
 from ulid import ULID
 
 from edelrep.domain.entities import Image, Repair, Vehicle
+from edelrep.domain.exceptions import ImageNotFound
 from edelrep.domain.ports import (
     EmailInbox,
     EmailMessage,
+    FuzzyMatcher,
     ImageRepository,
     RepairRepository,
     SearchIndex,
@@ -73,6 +75,24 @@ class _FakeImageRepo:
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         return [i for i in self._store.values() if i.repair_id == repair_id]
 
+    def update_comment(self, image_id: ULID, comment: str | None) -> None:
+        if image_id not in self._store:
+            raise ImageNotFound(image_id)
+        old = self._store[image_id]
+        self._store[image_id] = Image(
+            id=old.id,
+            repair_id=old.repair_id,
+            storage_key=old.storage_key,
+            thumbnail_key=old.thumbnail_key,
+            filename=old.filename,
+            mime_type=old.mime_type,
+            size_bytes=old.size_bytes,
+            source=old.source,
+            uploaded_at=old.uploaded_at,
+            captured_at=old.captured_at,
+            comment=comment,
+        )
+
 
 class _FakeStorage:
     def __init__(self) -> None:
@@ -104,6 +124,9 @@ class _FakeSearchIndex:
     def search_vehicles(self, query: str, limit: int = 20) -> Iterable[Vehicle]:
         return list(self._rows.values())[:limit]
 
+    def list_vehicles_by_activity(self, limit: int) -> Iterable[Vehicle]:
+        return list(self._rows.values())[:limit]
+
     def upsert_vehicle(self, vehicle: Vehicle) -> None:
         self._rows[vehicle.id] = vehicle
 
@@ -124,6 +147,11 @@ class _FakeInbox:
 
     def mark_processed(self, message_id: str) -> None:
         self.processed.append(message_id)
+
+
+class _FakeFuzzyMatcher:
+    def score(self, query: str, candidate: str) -> float:
+        return 100.0 if query == candidate else 0.0
 
 
 def test_fake_vehicle_repo_satisfies_protocol() -> None:
@@ -154,3 +182,8 @@ def test_fake_search_index_satisfies_protocol() -> None:
 def test_fake_inbox_satisfies_protocol() -> None:
     inbox: EmailInbox = _FakeInbox()
     assert isinstance(inbox, EmailInbox)
+
+
+def test_fake_fuzzy_matcher_satisfies_protocol() -> None:
+    matcher: FuzzyMatcher = _FakeFuzzyMatcher()
+    assert isinstance(matcher, FuzzyMatcher)

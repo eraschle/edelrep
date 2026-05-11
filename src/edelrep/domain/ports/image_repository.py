@@ -23,9 +23,18 @@ class ImageRepository(Protocol):
     ) -> None:
         """Persist the image record together with the raw image bytes
         (and optional thumbnail). The implementation is responsible for
-        writing both byte streams atomically."""
+        writing both byte streams atomically. If ``image.comment`` is
+        non-``None`` the implementation must also persist it."""
         ...
 
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         """Iterate the repair's images in upload order."""
+        ...
+
+    def update_comment(self, image_id: ULID, comment: str | None) -> None:
+        """Set or clear the comment for an existing image.
+
+        ``None`` removes any persisted comment. Raises
+        :class:`ImageNotFound` when the image does not exist.
+        """
         ...

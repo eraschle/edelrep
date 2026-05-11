@@ -187,3 +187,36 @@ def test_upload_different_images_both_succeed(
 
     stored = list(image_repo.list_for_repair(sample_repair.id))
     assert len(stored) == 2
+
+
+def test_upload_image_with_comment_persists_comment(
+    repair_repo: InMemoryRepairRepo,
+    image_repo: InMemoryImageRepo,
+    sample_repair: Repair,
+) -> None:
+    repair_repo.save(sample_repair)
+    use_case = _make_use_case(repair_repo, image_repo)
+    image = use_case.execute(
+        repair_id=sample_repair.id,
+        raw_bytes=b"raw",
+        filename="foo.jpg",
+        comment="brakes left front",
+    )
+    assert image.comment == "brakes left front"
+    assert image_repo.get(image.id).comment == "brakes left front"
+
+
+def test_upload_image_normalises_whitespace_only_comment_to_none(
+    repair_repo: InMemoryRepairRepo,
+    image_repo: InMemoryImageRepo,
+    sample_repair: Repair,
+) -> None:
+    repair_repo.save(sample_repair)
+    use_case = _make_use_case(repair_repo, image_repo)
+    image = use_case.execute(
+        repair_id=sample_repair.id,
+        raw_bytes=b"raw",
+        filename="foo.jpg",
+        comment="   ",
+    )
+    assert image.comment is None

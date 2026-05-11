@@ -48,6 +48,7 @@ class Image:
     source: ImageSource
     uploaded_at: datetime
     captured_at: datetime | None
+    comment: str | None = None
 
     def __post_init__(self) -> None:
         _require_aware(self.uploaded_at, "uploaded_at")
@@ -55,3 +56,5 @@ class Image:
             _require_aware(self.captured_at, "captured_at")
         if self.size_bytes < 0:
             raise ValueError("size_bytes must be non-negative")
+        if self.comment is not None and len(self.comment) > 1000:
+            raise ValueError("comment too long (max 1000 chars)")

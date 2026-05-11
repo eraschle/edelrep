@@ -83,7 +83,7 @@ class LiveIndex:
                     self._handle_vehicle(key)
                 elif kind is EntityKind.REPAIR:
                     self._handle_repair(key)
-                elif kind is EntityKind.IMAGE:
+                elif kind is EntityKind.IMAGE or kind is EntityKind.IMAGE_SIDECAR:
                     self._handle_image(key)
             except Exception:  # watcher must not crash on individual key
                 _logger.exception("watcher: failed to apply key %r", key)

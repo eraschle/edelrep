@@ -122,7 +122,7 @@ Sidecar-Schemas (alle mit `schema_version: 1`):
 }
 ```
 
-Pro Bild gibt es **keine** Sidecar-Datei in V1. Quelle (`manual` vs. `email`) und EXIF-Capture-Time werden beim Upload an die Use-Case übergeben, aber nicht persistiert — beim Lesen sind die Defaults `manual` / `None`.
+Pro Bild gibt es einen **optionalen** Sidecar `NNNN_<ulid>.json` (`schema_version: 1`) neben der Bilddatei. Aktuell enthält er nur das Feld `comment` (max 1000 Zeichen). Die Quelle (`manual` vs. `email`) und die EXIF-Capture-Time werden weiterhin nicht persistiert — beim Lesen sind die Defaults `manual` / `None`. Image-Sidecars werden vom Watcher als Image-Events behandelt (sie triggern keinen Drift).
 
 ## Ports & Adapter
 

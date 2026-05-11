@@ -4,6 +4,8 @@ import threading
 from collections.abc import Iterable
 from datetime import UTC, datetime
 
+from ulid import ULID
+
 from edelrep.domain.entities import Vehicle
 from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.json_codec import parse_aware_datetime
@@ -56,6 +58,35 @@ class SqliteSearchIndex:
                 (like, like, like, limit),
             )
             return [_row_to_vehicle(row) for row in cur.fetchall()]
+
+    def list_vehicles_by_activity(self, limit: int) -> Iterable[Vehicle]:
+        if limit < 1:
+            return []
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT v.registration_number, v.vin, v.description, v.created_at,
+                       (SELECT MAX(id) FROM repairs
+                        WHERE registration_number = v.registration_number) AS last_repair_id,
+                       (SELECT MAX(i.id) FROM images i
+                        JOIN repairs r ON r.id = i.repair_id
+                        WHERE r.registration_number = v.registration_number) AS last_image_id
+                FROM vehicles v
+                """
+            ).fetchall()
+
+        enriched: list[tuple[datetime, Vehicle]] = []
+        for row in rows:
+            vehicle = _row_to_vehicle(row)
+            candidates: list[datetime] = [vehicle.created_at]
+            for col in ("last_repair_id", "last_image_id"):
+                ulid_str = row[col]
+                if ulid_str:
+                    candidates.append(ULID.from_str(ulid_str).datetime)
+            enriched.append((max(candidates), vehicle))
+
+        enriched.sort(key=lambda t: t[0], reverse=True)
+        return [v for _, v in enriched[:limit]]
 
     def upsert_vehicle(self, vehicle: Vehicle) -> None:
         with self._lock:

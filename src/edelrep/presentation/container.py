@@ -8,6 +8,7 @@ from edelrep.application.get_image import GetImageUseCase
 from edelrep.application.ingest_email import IngestEmailUseCase
 from edelrep.application.list_repairs import ListRepairsUseCase
 from edelrep.application.search_vehicle import SearchVehicleUseCase
+from edelrep.application.update_image_comment import UpdateImageCommentUseCase
 from edelrep.application.upload_image import UploadImageUseCase
 from edelrep.domain.ports import (
     ImageRepository,
@@ -33,6 +34,7 @@ from edelrep.infrastructure.index import (
     SqliteSearchIndex,
     open_index_database,
 )
+from edelrep.infrastructure.search.rapidfuzz_matcher import RapidFuzzMatcher
 from edelrep.infrastructure.storage import LocalFilesystemBackend
 from edelrep.infrastructure.watcher.live_index import LiveIndex
 
@@ -53,6 +55,7 @@ class Container:
     list_repairs: ListRepairsUseCase
     get_image: GetImageUseCase
     search_vehicle: SearchVehicleUseCase
+    update_image_comment: UpdateImageCommentUseCase
     inbox_reader: InboxReader
     live_index: LiveIndex | None = None
     email_poller: EmailPoller | None = None
@@ -81,6 +84,7 @@ def build_container(
     search_index = SqliteSearchIndex(conn, lock)
 
     processor = PillowImageProcessor()
+    fuzzy_matcher = RapidFuzzMatcher()
 
     inbox_reader = InboxReader(backend)
 
@@ -96,7 +100,8 @@ def build_container(
         upload_image=UploadImageUseCase(repair_repo, image_repo, processor, backend),
         list_repairs=ListRepairsUseCase(vehicle_repo, repair_repo),
         get_image=GetImageUseCase(image_repo, backend),
-        search_vehicle=SearchVehicleUseCase(search_index),
+        search_vehicle=SearchVehicleUseCase(search_index, fuzzy=fuzzy_matcher),
+        update_image_comment=UpdateImageCommentUseCase(image_repo),
         inbox_reader=inbox_reader,
     )
 

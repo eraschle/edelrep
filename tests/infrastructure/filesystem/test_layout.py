@@ -8,7 +8,9 @@ from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.layout import (
     image_filename,
     image_key,
+    image_sidecar_key,
     is_image_key,
+    is_image_sidecar_key,
     is_repair_sidecar_key,
     is_vehicle_sidecar_key,
     repair_dir_name,
@@ -179,3 +181,21 @@ def test_is_repair_sidecar_key(key: str, expected: bool) -> None:
 )
 def test_is_image_key(key: str, expected: bool) -> None:
     assert is_image_key(key) is expected
+
+
+def test_image_sidecar_key_replaces_extension_with_json() -> None:
+    vid = VehicleId("12345")
+    key = image_sidecar_key(vid, "2026-05-10__brakes", "0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg")
+    assert key == "12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json"
+
+
+def test_is_image_sidecar_key_accepts_valid() -> None:
+    assert is_image_sidecar_key("12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json")
+
+
+def test_is_image_sidecar_key_rejects_repair_sidecar() -> None:
+    assert not is_image_sidecar_key("12345/2026-05-10__brakes/_repair.json")
+
+
+def test_is_image_sidecar_key_rejects_image_jpg() -> None:
+    assert not is_image_sidecar_key("12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg")

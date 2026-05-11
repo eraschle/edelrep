@@ -4,6 +4,7 @@ from pathlib import Path
 
 from edelrep.infrastructure.filesystem.layout import (
     is_image_key,
+    is_image_sidecar_key,
     is_repair_sidecar_key,
     is_vehicle_sidecar_key,
 )
@@ -16,6 +17,7 @@ class EntityKind(Enum):
     VEHICLE = auto()
     REPAIR = auto()
     IMAGE = auto()
+    IMAGE_SIDECAR = auto()
     THUMBNAIL = auto()
     IGNORED = auto()
 
@@ -36,6 +38,8 @@ def classify(key: str) -> EntityKind:
         return EntityKind.VEHICLE
     if is_repair_sidecar_key(key):
         return EntityKind.REPAIR
+    if is_image_sidecar_key(key):
+        return EntityKind.IMAGE_SIDECAR
     if is_image_key(key):
         return EntityKind.IMAGE
     return EntityKind.IGNORED
