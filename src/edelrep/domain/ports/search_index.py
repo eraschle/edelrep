@@ -17,6 +17,15 @@ class SearchIndex(Protocol):
         """Full-text search over registration_number, vin, description."""
         ...
 
+    def list_vehicles_by_activity(self, limit: int) -> Iterable[Vehicle]:
+        """Iterate vehicles, most-recently-active first.
+
+        Activity is the maximum of (most recent repair, most recent image
+        upload, vehicle.created_at). Implementations decide how they
+        materialise this ranking.
+        """
+        ...
+
     def upsert_vehicle(self, vehicle: Vehicle) -> None:
         """Insert or update the index row for ``vehicle``."""
         ...

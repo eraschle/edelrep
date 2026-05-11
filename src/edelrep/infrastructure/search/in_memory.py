@@ -37,6 +37,9 @@ class InMemorySearchIndex:
                 break
         return results
 
+    def list_vehicles_by_activity(self, limit: int) -> Iterable[Vehicle]:
+        return list(self._rows.values())[:limit]
+
     def upsert_vehicle(self, vehicle: Vehicle) -> None:
         self._rows[vehicle.id] = vehicle
 

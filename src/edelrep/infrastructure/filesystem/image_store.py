@@ -69,6 +69,10 @@ class FilesystemImageRepository:
         if thumbnail_bytes is not None:
             self._backend.write_bytes(thumbnail_key(vehicle_id, dir_name, name), thumbnail_bytes)
 
+    def update_comment(self, image_id: ULID, comment: str | None) -> None:
+        """Stub — full implementation in Task 6 (sidecar handling)."""
+        raise NotImplementedError  # pragma: no cover
+
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         repair_path = self._find_repair_path(repair_id)
         if repair_path is None:

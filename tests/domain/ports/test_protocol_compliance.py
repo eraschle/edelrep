@@ -74,6 +74,25 @@ class _FakeImageRepo:
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         return [i for i in self._store.values() if i.repair_id == repair_id]
 
+    def update_comment(self, image_id: ULID, comment: str | None) -> None:
+        from edelrep.domain.exceptions import ImageNotFound
+        if image_id not in self._store:
+            raise ImageNotFound(image_id)
+        old = self._store[image_id]
+        self._store[image_id] = Image(
+            id=old.id,
+            repair_id=old.repair_id,
+            storage_key=old.storage_key,
+            thumbnail_key=old.thumbnail_key,
+            filename=old.filename,
+            mime_type=old.mime_type,
+            size_bytes=old.size_bytes,
+            source=old.source,
+            uploaded_at=old.uploaded_at,
+            captured_at=old.captured_at,
+            comment=comment,
+        )
+
 
 class _FakeStorage:
     def __init__(self) -> None:
@@ -103,6 +122,9 @@ class _FakeSearchIndex:
         self._rows: dict[VehicleId, Vehicle] = {}
 
     def search_vehicles(self, query: str, limit: int = 20) -> Iterable[Vehicle]:
+        return list(self._rows.values())[:limit]
+
+    def list_vehicles_by_activity(self, limit: int) -> Iterable[Vehicle]:
         return list(self._rows.values())[:limit]
 
     def upsert_vehicle(self, vehicle: Vehicle) -> None:
