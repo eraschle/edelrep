@@ -114,6 +114,9 @@
   async function uploadOne(entry, baseUrl) {
     const fd = new FormData();
     fd.set('image', entry.file, entry.file.name);
+    if (entry.commentEl) {
+      fd.set('comment', entry.commentEl.value);
+    }
     let resp;
     try {
       resp = await fetch(baseUrl, {
