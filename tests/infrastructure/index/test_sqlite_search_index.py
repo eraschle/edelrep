@@ -1,10 +1,19 @@
 import sqlite3
 import threading
-from datetime import UTC, datetime
+import time
+from datetime import UTC, date, datetime
+from pathlib import Path
 
-from edelrep.domain.entities import Vehicle
+from ulid import ULID
+
+from edelrep.domain.entities import Repair, Vehicle
 from edelrep.domain.ports import SearchIndex
 from edelrep.domain.value_objects import VehicleId
+from edelrep.infrastructure.index import (
+    SqliteIndexProjector,
+    SqliteSearchIndex,
+    open_index_database,
+)
 from edelrep.infrastructure.index.sqlite_search_index import SqliteSearchIndex
 
 
@@ -116,3 +125,55 @@ def test_search_falls_back_to_like_for_fts5_reserved_words(
     # The fallback should not raise.
     results = list(idx.search_vehicles("OR"))
     assert isinstance(results, list)
+
+
+def test_list_vehicles_by_activity_orders_by_latest_repair(tmp_path: Path) -> None:
+    conn, lock = open_index_database(tmp_path / "idx.db")
+    projector = SqliteIndexProjector(conn, lock)
+    index = SqliteSearchIndex(conn, lock)
+    try:
+        old = Vehicle(id=VehicleId("AAA"), vin=None, description=None,
+                      created_at=datetime(2026, 1, 1, tzinfo=UTC))
+        new = Vehicle(id=VehicleId("BBB"), vin=None, description=None,
+                      created_at=datetime(2026, 1, 1, tzinfo=UTC))
+        projector.upsert_vehicle(old)
+        projector.upsert_vehicle(new)
+        time.sleep(0.01)
+        recent_repair = Repair(
+            id=ULID(), vehicle_id=new.id, date=date(2026, 5, 10),
+            description="brakes", created_at=datetime.now(UTC),
+        )
+        projector.upsert_repair(recent_repair)
+
+        results = list(index.list_vehicles_by_activity(limit=10))
+        ids = [v.id.registration_number for v in results]
+        assert ids.index("BBB") < ids.index("AAA")
+    finally:
+        conn.close()
+
+
+def test_list_vehicles_by_activity_limit_zero_returns_empty(tmp_path: Path) -> None:
+    conn, lock = open_index_database(tmp_path / "idx.db")
+    index = SqliteSearchIndex(conn, lock)
+    try:
+        assert list(index.list_vehicles_by_activity(limit=0)) == []
+    finally:
+        conn.close()
+
+
+def test_list_vehicles_by_activity_uses_created_at_when_no_activity(tmp_path: Path) -> None:
+    conn, lock = open_index_database(tmp_path / "idx.db")
+    projector = SqliteIndexProjector(conn, lock)
+    index = SqliteSearchIndex(conn, lock)
+    try:
+        older = Vehicle(id=VehicleId("AAA"), vin=None, description=None,
+                        created_at=datetime(2026, 1, 1, tzinfo=UTC))
+        newer = Vehicle(id=VehicleId("BBB"), vin=None, description=None,
+                        created_at=datetime(2026, 5, 1, tzinfo=UTC))
+        projector.upsert_vehicle(older)
+        projector.upsert_vehicle(newer)
+        results = list(index.list_vehicles_by_activity(limit=10))
+        ids = [v.id.registration_number for v in results]
+        assert ids.index("BBB") < ids.index("AAA")
+    finally:
+        conn.close()
