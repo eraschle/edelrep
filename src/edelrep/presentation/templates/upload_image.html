@@ -8,24 +8,24 @@
   <form method="post"
         action="/vehicles/{{ registration_number }}/repairs/{{ repair_id }}/images"
         enctype="multipart/form-data"
-        class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-4">
+        class="bg-white border border-stone-200 rounded-xl shadow-sm p-6 space-y-4">
     <input type="file" name="image" accept="image/*" required
-           class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg shadow-sm">
+           class="w-full px-3 py-2.5 bg-white border border-stone-300 rounded-lg shadow-sm">
     <button type="submit"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
+            class="bg-[#b59775] hover:bg-[#ac8a64] text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
       Hochladen
     </button>
   </form>
 </noscript>
 
 <form id="upload-form"
-      class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-5"
+      class="bg-white border border-stone-200 rounded-xl shadow-sm p-6 space-y-5"
       data-vehicle-url="/vehicles/{{ registration_number }}"
       data-images-url="/vehicles/{{ registration_number }}/repairs/{{ repair_id }}/images">
   {{ image_picker(name="repair_images") }}
   <div id="upload-banner" class="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-lg text-sm" hidden></div>
   <button type="submit" id="upload-submit"
-          class="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors"
+          class="bg-[#b59775] hover:bg-[#ac8a64] disabled:bg-stone-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors"
           disabled>
     Hochladen
   </button>

@@ -2,17 +2,17 @@
 {% from "_icons.html" import icon %}
 {% block title %}{{ vehicle.id.registration_number }} – edelrep{% endblock %}
 {% block content %}
-<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
+<div class="bg-white border border-stone-200 rounded-xl shadow-sm p-6 mb-6">
   <h1 class="text-3xl font-bold tracking-tight mb-3">{{ vehicle.id.registration_number }}</h1>
   {% if vehicle.vin %}
-    <p class="text-sm text-slate-700">{{ vehicle_labels["vin"] }}: <span class="font-mono">{{ vehicle.vin }}</span></p>
+    <p class="text-sm text-stone-700">{{ vehicle_labels["vin"] }}: <span class="font-mono">{{ vehicle.vin }}</span></p>
   {% endif %}
   {% if vehicle.description %}
-    <p class="text-sm text-slate-700 mt-1">{{ vehicle_labels["description"] }}: {{ vehicle.description }}</p>
+    <p class="text-sm text-stone-700 mt-1">{{ vehicle_labels["description"] }}: {{ vehicle.description }}</p>
   {% endif %}
   <div class="mt-5">
     <a href="/vehicles/{{ vehicle.id.registration_number }}/repairs/new"
-       class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
+       class="inline-flex items-center gap-2 bg-[#b59775] hover:bg-[#ac8a64] text-white px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
       {{ icon("plus", "w-4 h-4") }} Reparatur
     </a>
   </div>
@@ -22,10 +22,10 @@
 {% if repairs %}
 <ul class="space-y-3">
 {% for r in repairs %}
-  <li class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+  <li class="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
     <div class="flex justify-between items-baseline gap-4">
       <strong class="text-base">{{ r.description }}</strong>
-      <span class="text-sm text-slate-500 font-mono whitespace-nowrap">{{ r.date.isoformat() }}</span>
+      <span class="text-sm text-stone-500 font-mono whitespace-nowrap">{{ r.date.isoformat() }}</span>
     </div>
     {% set repair_images = images_by_repair.get(r.id|string, []) %}
     {% if repair_images %}
@@ -33,7 +33,7 @@
     {% for img in repair_images %}
       <div class="flex-shrink-0 w-24">
         <button type="button"
-                class="block w-24 h-24 rounded-lg overflow-hidden ring-1 ring-slate-200 hover:ring-blue-400 transition-all"
+                class="block w-24 h-24 rounded-lg overflow-hidden ring-1 ring-stone-200 hover:ring-[#b59775] transition-all"
                 data-image-trigger
                 data-image-id="{{ img.id }}"
                 data-image-filename="{{ img.filename }}"
@@ -42,42 +42,42 @@
                class="w-full h-full object-cover">
         </button>
         {% if img.comment %}
-        <p class="mt-1 text-xs text-slate-600 line-clamp-2 break-words"
+        <p class="mt-1 text-xs text-stone-600 line-clamp-2 break-words"
            data-image-caption-for="{{ img.id }}">{{ img.comment }}</p>
         {% else %}
-        <p class="mt-1 text-xs text-slate-400 italic" data-image-caption-for="{{ img.id }}" hidden></p>
+        <p class="mt-1 text-xs text-stone-400 italic" data-image-caption-for="{{ img.id }}" hidden></p>
         {% endif %}
       </div>
     {% endfor %}
     </div>
     {% endif %}
     <a href="/vehicles/{{ vehicle.id.registration_number }}/repairs/{{ r.id }}/upload"
-       class="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium mt-3 transition-colors">
+       class="inline-flex items-center gap-1.5 text-sm text-[#ac8a64] hover:text-[#8a6f4f] font-medium mt-3 transition-colors">
       {{ icon("image-plus", "w-4 h-4") }} Bilder hochladen
     </a>
   </li>
 {% endfor %}
 </ul>
 {% else %}
-<p class="text-slate-500 text-center bg-white border border-dashed border-slate-300 rounded-xl py-8">Noch keine Reparaturen.</p>
+<p class="text-stone-500 text-center bg-white border border-dashed border-stone-300 rounded-xl py-8">Noch keine Reparaturen.</p>
 {% endif %}
 <div id="image-modal" class="hidden fixed inset-0 z-50 bg-black/70 items-center justify-center p-4">
   <div class="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-auto p-4 space-y-3">
     <div class="flex justify-between items-center gap-3">
       <span data-modal-filename class="font-medium text-sm truncate"></span>
       <button type="button" data-modal-close aria-label="Schliessen"
-              class="text-slate-400 hover:text-slate-900 text-2xl leading-none">×</button>
+              class="text-stone-400 hover:text-stone-900 text-2xl leading-none">×</button>
     </div>
-    <img data-modal-image alt="" class="w-full h-auto rounded-lg max-h-[60vh] object-contain bg-slate-50">
-    <a data-modal-raw target="_blank" class="text-sm text-blue-600 hover:underline">In neuem Tab öffnen</a>
+    <img data-modal-image alt="" class="w-full h-auto rounded-lg max-h-[60vh] object-contain bg-stone-50">
+    <a data-modal-raw target="_blank" class="text-sm text-[#ac8a64] hover:underline">In neuem Tab öffnen</a>
     <form data-modal-form class="space-y-2">
       <label class="block text-sm font-medium" for="image-modal-comment">Kommentar</label>
       <textarea id="image-modal-comment" data-modal-comment maxlength="1000" rows="3"
-                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
+                class="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm"></textarea>
       <div class="flex justify-end items-center gap-3">
-        <span data-modal-status class="text-xs text-slate-500"></span>
+        <span data-modal-status class="text-xs text-stone-500"></span>
         <button type="submit"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                class="bg-[#b59775] hover:bg-[#ac8a64] text-white px-4 py-2 rounded-lg text-sm font-medium">
           Speichern
         </button>
       </div>
@@ -147,8 +147,8 @@
         if (data.comment) {
           caption.textContent = data.comment;
           caption.hidden = false;
-          caption.classList.remove('text-slate-400', 'italic');
-          caption.classList.add('text-slate-600', 'line-clamp-2', 'break-words');
+          caption.classList.remove('text-stone-400', 'italic');
+          caption.classList.add('text-stone-600', 'line-clamp-2', 'break-words');
         } else {
           caption.textContent = '';
           caption.hidden = true;

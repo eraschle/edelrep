@@ -2,19 +2,19 @@
 {% from "_icons.html" import icon %}
 {% block title %}{{ parked.subject }} – Posteingang{% endblock %}
 {% block content %}
-<a href="/inbox" class="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium mb-4 transition-colors">
+<a href="/inbox" class="inline-flex items-center gap-1.5 text-sm text-[#ac8a64] hover:text-[#8a6f4f] font-medium mb-4 transition-colors">
   {{ icon("arrow-left", "w-4 h-4") }} zurück zum Posteingang
 </a>
 
-<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
+<div class="bg-white border border-stone-200 rounded-xl shadow-sm p-6 mb-6">
   <h1 class="text-2xl font-bold tracking-tight mb-3">{{ parked.subject }}</h1>
   <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
-    <dt class="text-slate-500">Eingegangen:</dt>
-    <dd class="font-mono text-slate-700">{{ parked.received_at.isoformat() }}</dd>
-    <dt class="text-slate-500">Absender:</dt>
-    <dd class="font-mono text-slate-700">{{ parked.from_address }}</dd>
-    <dt class="text-slate-500">Status:</dt>
-    <dd class="text-slate-700">{{ parked.status }}</dd>
+    <dt class="text-stone-500">Eingegangen:</dt>
+    <dd class="font-mono text-stone-700">{{ parked.received_at.isoformat() }}</dd>
+    <dt class="text-stone-500">Absender:</dt>
+    <dd class="font-mono text-stone-700">{{ parked.from_address }}</dd>
+    <dt class="text-stone-500">Status:</dt>
+    <dd class="text-stone-700">{{ parked.status }}</dd>
   </dl>
 </div>
 
@@ -23,8 +23,8 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 {% for att in attachments %}
   <a href="/inbox/{{ slot_basename }}/attachments/{{ att.filename }}" target="_blank"
-     class="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-blue-300 transition-all">
-    <span class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex-shrink-0">
+     class="flex items-center gap-3 bg-white border border-stone-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-[#c8b198] transition-all">
+    <span class="flex items-center justify-center w-10 h-10 rounded-lg bg-stone-100 text-stone-600 flex-shrink-0">
       {{ icon("file", "w-5 h-5") }}
     </span>
     <span class="font-mono text-sm break-all min-w-0">{{ att.filename }}</span>
@@ -32,6 +32,6 @@
 {% endfor %}
 </div>
 {% else %}
-<p class="text-slate-500 text-center bg-white border border-dashed border-slate-300 rounded-xl py-8">Keine Anhänge.</p>
+<p class="text-stone-500 text-center bg-white border border-dashed border-stone-300 rounded-xl py-8">Keine Anhänge.</p>
 {% endif %}
 {% endblock %}
