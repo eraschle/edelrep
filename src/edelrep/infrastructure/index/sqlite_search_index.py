@@ -109,11 +109,15 @@ class SqliteSearchIndex:
             )
 
     def remove_vehicle(self, vehicle_id: ULID) -> None:
+        vid = str(vehicle_id)
         with self._lock:
             self._conn.execute(
-                "DELETE FROM vehicles WHERE id = ?",
-                (str(vehicle_id),),
+                "DELETE FROM images WHERE repair_id IN "
+                "(SELECT id FROM repairs WHERE vehicle_id = ?)",
+                (vid,),
             )
+            self._conn.execute("DELETE FROM repairs WHERE vehicle_id = ?", (vid,))
+            self._conn.execute("DELETE FROM vehicles WHERE id = ?", (vid,))
 
     def clear(self) -> None:
         with self._lock:

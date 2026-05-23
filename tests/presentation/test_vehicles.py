@@ -126,6 +126,60 @@ def test_edit_post_duplicate_vin_returns_400(
     assert "bereits vergeben" in r.text
 
 
+def test_delete_form_renders_with_confirmation_field(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    r = client.get("/vehicles/12345/delete")
+    assert r.status_code == 200
+    assert "Fahrzeug löschen" in r.text
+    assert 'name="confirmation"' in r.text
+
+
+def test_delete_form_404_for_unknown_vehicle(client: TestClient) -> None:
+    r = client.get("/vehicles/UNKNOWN/delete")
+    assert r.status_code == 404
+
+
+def test_delete_post_with_correct_confirmation_soft_deletes(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    r = client.post(
+        "/vehicles/12345/delete",
+        data={"confirmation": "12345"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/search"
+    assert container.vehicle_repo.find_by_registration("12345") is None
+    # Detail page must now 404 because the vehicle is soft-deleted.
+    detail = client.get("/vehicles/12345")
+    assert detail.status_code == 404
+
+
+def test_delete_post_with_wrong_confirmation_returns_400(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    r = client.post(
+        "/vehicles/12345/delete",
+        data={"confirmation": "wrong"},
+    )
+    assert r.status_code == 400
+    assert "Bestätigung" in r.text
+    # Vehicle must remain visible.
+    assert container.vehicle_repo.find_by_registration("12345") is not None
+
+
+def test_delete_post_404_for_unknown_vehicle(client: TestClient) -> None:
+    r = client.post(
+        "/vehicles/UNKNOWN/delete",
+        data={"confirmation": "UNKNOWN"},
+    )
+    assert r.status_code == 404
+
+
 def test_vehicle_detail_modal_initially_hidden_without_flex_conflict(
     client: TestClient, container: Container
 ) -> None:

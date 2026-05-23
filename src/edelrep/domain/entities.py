@@ -24,9 +24,12 @@ class Vehicle:
     vin: str | None
     description: str | None
     created_at: datetime
+    deleted_at: datetime | None = None
 
     def __post_init__(self) -> None:
         _require_aware(self.created_at, "created_at")
+        if self.deleted_at is not None:
+            _require_aware(self.deleted_at, "deleted_at")
         if self.registration_number is not None:
             object.__setattr__(
                 self,
@@ -37,6 +40,10 @@ class Vehicle:
             object.__setattr__(self, "vin", validate_vin(self.vin))
         if self.registration_number is None and self.vin is None:
             raise VehicleIdentifierRequired
+
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
 
 
 @dataclass(frozen=True, slots=True)

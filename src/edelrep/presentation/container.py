@@ -4,6 +4,10 @@ from pathlib import Path
 
 from edelrep.application.create_repair import CreateRepairUseCase
 from edelrep.application.create_vehicle import CreateVehicleUseCase
+from edelrep.application.delete_vehicle import (
+    CleanupDeletedVehiclesUseCase,
+    SoftDeleteVehicleUseCase,
+)
 from edelrep.application.get_image import GetImageUseCase
 from edelrep.application.ingest_email import IngestEmailUseCase
 from edelrep.application.list_repairs import ListRepairsUseCase
@@ -35,6 +39,7 @@ from edelrep.infrastructure.index import (
     SqliteSearchIndex,
     open_index_database,
 )
+from edelrep.infrastructure.scheduler import DailyCleanupScheduler
 from edelrep.infrastructure.search.rapidfuzz_matcher import RapidFuzzMatcher
 from edelrep.infrastructure.storage import LocalFilesystemBackend
 from edelrep.infrastructure.watcher.live_index import LiveIndex
@@ -52,6 +57,8 @@ class Container:
     projector: SqliteIndexProjector
     create_vehicle: CreateVehicleUseCase
     update_vehicle: UpdateVehicleUseCase
+    soft_delete_vehicle: SoftDeleteVehicleUseCase
+    cleanup_deleted_vehicles: CleanupDeletedVehiclesUseCase
     create_repair: CreateRepairUseCase
     upload_image: UploadImageUseCase
     list_repairs: ListRepairsUseCase
@@ -61,6 +68,7 @@ class Container:
     inbox_reader: InboxReader
     live_index: LiveIndex | None = None
     email_poller: EmailPoller | None = None
+    cleanup_scheduler: DailyCleanupScheduler | None = None
 
 
 def build_container(
@@ -68,6 +76,7 @@ def build_container(
     index_path: Path | str,
     *,
     with_live_index: bool = True,
+    with_cleanup_scheduler: bool = True,
     debounce_seconds: float = 0.3,
     email_config: EmailConfig | None = None,
 ) -> Container:
@@ -99,6 +108,8 @@ def build_container(
         projector=projector,
         create_vehicle=CreateVehicleUseCase(vehicle_repo, search_index),
         update_vehicle=UpdateVehicleUseCase(vehicle_repo, search_index),
+        soft_delete_vehicle=SoftDeleteVehicleUseCase(vehicle_repo, search_index),
+        cleanup_deleted_vehicles=CleanupDeletedVehiclesUseCase(vehicle_repo, search_index),
         create_repair=CreateRepairUseCase(vehicle_repo, repair_repo),
         upload_image=UploadImageUseCase(repair_repo, image_repo, processor, backend),
         list_repairs=ListRepairsUseCase(vehicle_repo, repair_repo),
@@ -116,6 +127,11 @@ def build_container(
             repair_repo=repair_repo,
             image_repo=image_repo,
             debounce_seconds=debounce_seconds,
+        )
+
+    if with_cleanup_scheduler:
+        container.cleanup_scheduler = DailyCleanupScheduler(
+            container.cleanup_deleted_vehicles
         )
 
     if email_config is not None and email_config.enabled:

@@ -17,11 +17,14 @@ class InMemoryVehicleRepo:
     def __init__(self) -> None:
         self._store: dict[ULID, Vehicle] = {}
 
-    def get(self, vehicle_id: ULID) -> Vehicle:
+    def get(self, vehicle_id: ULID, *, include_deleted: bool = False) -> Vehicle:
         try:
-            return self._store[vehicle_id]
+            vehicle = self._store[vehicle_id]
         except KeyError as exc:
             raise VehicleNotFound(str(vehicle_id)) from exc
+        if vehicle.is_deleted and not include_deleted:
+            raise VehicleNotFound(str(vehicle_id))
+        return vehicle
 
     def save(self, vehicle: Vehicle) -> None:
         self._guard_unique(vehicle)
@@ -33,15 +36,27 @@ class InMemoryVehicleRepo:
         self._guard_unique(vehicle)
         self._store[vehicle.id] = vehicle
 
-    def list_all(self) -> Iterable[Vehicle]:
-        return list(self._store.values())
+    def hard_delete(self, vehicle_id: ULID) -> None:
+        self._store.pop(vehicle_id, None)
 
-    def exists(self, vehicle_id: ULID) -> bool:
-        return vehicle_id in self._store
+    def list_all(self, *, include_deleted: bool = False) -> Iterable[Vehicle]:
+        if include_deleted:
+            return list(self._store.values())
+        return [v for v in self._store.values() if not v.is_deleted]
+
+    def exists(self, vehicle_id: ULID, *, include_deleted: bool = False) -> bool:
+        vehicle = self._store.get(vehicle_id)
+        if vehicle is None:
+            return False
+        if include_deleted:
+            return True
+        return not vehicle.is_deleted
 
     def find_by_registration(self, registration_number: str) -> Vehicle | None:
         needle = registration_number.strip()
         for v in self._store.values():
+            if v.is_deleted:
+                continue
             if v.registration_number == needle:
                 return v
         return None
@@ -49,6 +64,8 @@ class InMemoryVehicleRepo:
     def find_by_vin(self, vin: str) -> Vehicle | None:
         needle = vin.strip().upper()
         for v in self._store.values():
+            if v.is_deleted:
+                continue
             if v.vin == needle:
                 return v
         return None

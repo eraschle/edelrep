@@ -52,6 +52,13 @@ class DuplicateVin(DomainError):
         self.value = value
 
 
+class DeletionConfirmationMismatch(DomainError):
+    """Raised when the user-typed confirmation does not match the vehicle key."""
+
+    def __init__(self) -> None:
+        super().__init__("Bestätigung stimmt nicht mit dem Fahrzeug überein.")
+
+
 class RepairNotFound(DomainError):
     """Raised when a repair lookup misses."""
 

@@ -21,7 +21,7 @@ class _FakeVehicleRepo:
     def __init__(self) -> None:
         self._store: dict[ULID, Vehicle] = {}
 
-    def get(self, vehicle_id: ULID) -> Vehicle:
+    def get(self, vehicle_id: ULID, *, include_deleted: bool = False) -> Vehicle:
         return self._store[vehicle_id]
 
     def save(self, vehicle: Vehicle) -> None:
@@ -30,10 +30,13 @@ class _FakeVehicleRepo:
     def update(self, vehicle: Vehicle) -> None:
         self._store[vehicle.id] = vehicle
 
-    def list_all(self) -> Iterable[Vehicle]:
+    def hard_delete(self, vehicle_id: ULID) -> None:
+        self._store.pop(vehicle_id, None)
+
+    def list_all(self, *, include_deleted: bool = False) -> Iterable[Vehicle]:
         return list(self._store.values())
 
-    def exists(self, vehicle_id: ULID) -> bool:
+    def exists(self, vehicle_id: ULID, *, include_deleted: bool = False) -> bool:
         return vehicle_id in self._store
 
     def find_by_registration(self, registration_number: str) -> Vehicle | None:

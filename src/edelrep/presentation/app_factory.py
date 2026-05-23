@@ -20,9 +20,13 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
         container.live_index.start()
     if container.email_poller is not None:
         container.email_poller.start()
+    if container.cleanup_scheduler is not None:
+        container.cleanup_scheduler.start()
     try:
         yield
     finally:
+        if container.cleanup_scheduler is not None:
+            container.cleanup_scheduler.stop()
         if container.email_poller is not None:
             container.email_poller.stop()
         if container.live_index is not None:

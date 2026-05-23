@@ -79,6 +79,29 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to TOML file with [email] section enabling IMAP poller",
     )
 
+    cleanup = sub.add_parser(
+        "cleanup",
+        help="Hard-delete soft-deleted vehicles older than the retention window",
+    )
+    cleanup.add_argument(
+        "--storage-root",
+        type=Path,
+        required=True,
+        help="Root directory of the storage layout",
+    )
+    cleanup.add_argument(
+        "--index-path",
+        type=Path,
+        required=True,
+        help="Path to the SQLite index file",
+    )
+    cleanup.add_argument(
+        "--older-than-days",
+        type=int,
+        default=30,
+        help="Retention window in days (default: 30)",
+    )
+
     migrate = sub.add_parser("migrate-storage", help="Copy storage tree to a new location and verify counts")
     migrate.add_argument(
         "--from",
@@ -115,6 +138,9 @@ def main(argv: list[str] | None = None) -> int:
             args.port,
             args.email_config,
         )
+
+    if args.command == "cleanup":
+        return _cmd_cleanup(args.storage_root, args.index_path, args.older_than_days)
 
     if args.command == "migrate-storage":
         return _cmd_migrate_storage(args.source_root, args.target_root)
@@ -210,6 +236,30 @@ def _cmd_serve(
     )
     app = create_app(container)
     uvicorn.run(app, host=host, port=port)
+    return 0
+
+
+def _cmd_cleanup(storage_root: Path, index_path: Path, older_than_days: int) -> int:
+    from edelrep.application.delete_vehicle import CleanupDeletedVehiclesUseCase  # noqa: PLC0415
+    from edelrep.infrastructure.index.sqlite_search_index import SqliteSearchIndex  # noqa: PLC0415
+
+    storage_root.mkdir(parents=True, exist_ok=True)
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+
+    backend = LocalFilesystemBackend(storage_root)
+    vrepo = FilesystemVehicleRepository(backend)
+    conn, lock = open_index_database(index_path)
+    try:
+        search_index = SqliteSearchIndex(conn, lock)
+        use_case = CleanupDeletedVehiclesUseCase(vrepo, search_index)
+        stats = use_case.execute(retention_days=older_than_days)
+    finally:
+        conn.close()
+
+    sys.stdout.write(
+        f"cleanup complete: vehicles_purged={stats.vehicles_purged} "
+        f"older_than_days={older_than_days}\n"
+    )
     return 0
 
 
