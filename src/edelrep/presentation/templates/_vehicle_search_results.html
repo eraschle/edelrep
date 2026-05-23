@@ -2,10 +2,15 @@
 <ul class="space-y-3">
 {% for v in results %}
   <li>
-    <a href="/vehicles/{{ v.id.registration_number }}"
+    {% set _key = v.registration_number or v.vin or v.id|string %}
+    <a href="/vehicles/{{ _key }}"
        class="block bg-white border border-stone-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-[#c8b198] transition-all">
-      <div class="text-xl font-semibold tracking-tight">{{ v.id.registration_number }}</div>
-      {% if v.vin %}<div class="text-sm text-stone-600 mt-1">Rahmennummer: <span class="font-mono">{{ v.vin }}</span></div>{% endif %}
+      <div class="text-xl font-semibold tracking-tight">
+        {% if v.registration_number %}{{ v.registration_number }}
+        {% elif v.vin %}<span class="font-mono">{{ v.vin }}</span>
+        {% else %}<span class="text-stone-500 italic">Ohne Nummer</span>{% endif %}
+      </div>
+      {% if v.registration_number and v.vin %}<div class="text-sm text-stone-600 mt-1">Rahmennummer: <span class="font-mono">{{ v.vin }}</span></div>{% endif %}
       {% if v.description %}<div class="text-sm text-stone-700 mt-1">{{ v.description }}</div>{% endif %}
     </a>
   </li>

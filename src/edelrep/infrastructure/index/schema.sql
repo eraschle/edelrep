@@ -1,13 +1,17 @@
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS vehicles (
-  registration_number  TEXT PRIMARY KEY,
+  id                   TEXT PRIMARY KEY,
+  registration_number  TEXT,
   vin                  TEXT,
   description          TEXT,
   created_at           TEXT,
   fs_mtime             REAL
 );
-CREATE INDEX IF NOT EXISTS idx_vehicles_vin ON vehicles(vin);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vehicles_registration
+  ON vehicles(registration_number) WHERE registration_number IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vehicles_vin
+  ON vehicles(vin) WHERE vin IS NOT NULL;
 
 CREATE VIRTUAL TABLE IF NOT EXISTS vehicles_fts USING fts5(
   registration_number, vin, description,
@@ -33,14 +37,14 @@ END;
 
 CREATE TABLE IF NOT EXISTS repairs (
   id                   TEXT PRIMARY KEY,
-  registration_number  TEXT NOT NULL,
+  vehicle_id           TEXT NOT NULL,
   date                 TEXT NOT NULL,
   description          TEXT,
   folder_name          TEXT NOT NULL,
   fs_mtime             REAL
 );
 CREATE INDEX IF NOT EXISTS idx_repairs_vehicle_date
-  ON repairs(registration_number, date DESC);
+  ON repairs(vehicle_id, date DESC);
 
 CREATE TABLE IF NOT EXISTS images (
   id            TEXT PRIMARY KEY,

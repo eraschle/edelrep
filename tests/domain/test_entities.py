@@ -4,15 +4,23 @@ import pytest
 from ulid import ULID
 
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
-from edelrep.domain.value_objects import VehicleId
-
-
-def _vid() -> VehicleId:
-    return VehicleId("12345")
+from edelrep.domain.exceptions import VehicleIdentifierRequired
 
 
 def _now() -> datetime:
     return datetime(2026, 5, 2, 10, 0, tzinfo=UTC)
+
+
+def _vehicle(**overrides: object) -> Vehicle:
+    kwargs: dict[str, object] = dict(
+        id=ULID(),
+        registration_number="12345",
+        vin=None,
+        description=None,
+        created_at=_now(),
+    )
+    kwargs.update(overrides)
+    return Vehicle(**kwargs)  # type: ignore[arg-type]
 
 
 def test_image_source_values() -> None:
@@ -21,34 +29,58 @@ def test_image_source_values() -> None:
     assert ImageSource("manual") is ImageSource.MANUAL
 
 
-def test_vehicle_construction_with_optional_fields() -> None:
-    v = Vehicle(id=_vid(), vin="WDB123", description="Kran", created_at=_now())
-    assert v.id == _vid()
+def test_vehicle_construction_with_all_fields() -> None:
+    v = _vehicle(registration_number="12345", vin="WDB123", description="Kran")
+    assert v.registration_number == "12345"
     assert v.vin == "WDB123"
 
 
 def test_vehicle_allows_none_vin_and_description() -> None:
-    v = Vehicle(id=_vid(), vin=None, description=None, created_at=_now())
+    v = _vehicle()
     assert v.vin is None
     assert v.description is None
 
 
+def test_vehicle_requires_at_least_registration_or_vin() -> None:
+    with pytest.raises(VehicleIdentifierRequired):
+        Vehicle(
+            id=ULID(),
+            registration_number=None,
+            vin=None,
+            description="kein Identifier",
+            created_at=_now(),
+        )
+
+
+def test_vehicle_accepts_vin_only() -> None:
+    v = _vehicle(registration_number=None, vin="WDBONLY")
+    assert v.registration_number is None
+    assert v.vin == "WDBONLY"
+
+
 def test_vehicle_rejects_naive_datetime() -> None:
     with pytest.raises(ValueError, match="timezone-aware"):
-        Vehicle(id=_vid(), vin=None, description=None, created_at=datetime(2026, 5, 2, 10, 0))
+        Vehicle(
+            id=ULID(),
+            registration_number="12345",
+            vin=None,
+            description=None,
+            created_at=datetime(2026, 5, 2, 10, 0),
+        )
 
 
 def test_repair_construction() -> None:
     rid = ULID()
+    vid = ULID()
     r = Repair(
         id=rid,
-        vehicle_id=_vid(),
+        vehicle_id=vid,
         date=date(2026, 4, 15),
         description="Brake pads",
         created_at=_now(),
     )
     assert r.id is rid
-    assert r.vehicle_id == _vid()
+    assert r.vehicle_id == vid
     assert r.date == date(2026, 4, 15)
 
 
@@ -56,7 +88,7 @@ def test_repair_rejects_naive_datetime() -> None:
     with pytest.raises(ValueError, match="timezone-aware"):
         Repair(
             id=ULID(),
-            vehicle_id=_vid(),
+            vehicle_id=ULID(),
             date=date(2026, 4, 15),
             description="x",
             created_at=datetime(2026, 5, 2, 10, 0),

@@ -6,7 +6,7 @@
 
 <noscript>
   <form method="post"
-        action="/vehicles/{{ registration_number }}/repairs/{{ repair_id }}/images"
+        action="/vehicles/{{ vehicle_key }}/repairs/{{ repair_id }}/images"
         enctype="multipart/form-data"
         class="bg-white border border-stone-200 rounded-xl shadow-sm p-6 space-y-4">
     <input type="file" name="image" accept="image/*" required
@@ -20,8 +20,8 @@
 
 <form id="upload-form"
       class="bg-white border border-stone-200 rounded-xl shadow-sm p-6 space-y-5"
-      data-vehicle-url="/vehicles/{{ registration_number }}"
-      data-images-url="/vehicles/{{ registration_number }}/repairs/{{ repair_id }}/images">
+      data-vehicle-url="/vehicles/{{ vehicle_key }}"
+      data-images-url="/vehicles/{{ vehicle_key }}/repairs/{{ repair_id }}/images">
   {{ image_picker(name="repair_images") }}
   <div id="upload-banner" class="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-lg text-sm" hidden></div>
   <button type="submit" id="upload-submit"

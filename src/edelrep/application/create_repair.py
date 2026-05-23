@@ -5,7 +5,6 @@ from ulid import ULID
 from edelrep.domain.entities import Repair
 from edelrep.domain.exceptions import VehicleNotFound
 from edelrep.domain.ports import RepairRepository, VehicleRepository
-from edelrep.domain.value_objects import VehicleId
 
 
 class CreateRepairUseCase:
@@ -22,12 +21,12 @@ class CreateRepairUseCase:
     def execute(
         self,
         *,
-        vehicle_id: VehicleId,
+        vehicle_id: ULID,
         repair_date: _date,
         description: str | None,
     ) -> Repair:
         if not self._vehicle_repo.exists(vehicle_id):
-            raise VehicleNotFound(vehicle_id.registration_number)
+            raise VehicleNotFound(str(vehicle_id))
         repair = Repair(
             id=ULID(),
             vehicle_id=vehicle_id,

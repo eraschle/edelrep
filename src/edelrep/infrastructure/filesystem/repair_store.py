@@ -5,7 +5,6 @@ from ulid import ULID
 from edelrep.domain.entities import Repair
 from edelrep.domain.exceptions import DuplicateRepair, RepairNotFound, VehicleNotFound
 from edelrep.domain.ports import StorageBackend
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.json_codec import (
     parse_aware_datetime,
     parse_date,
@@ -26,7 +25,7 @@ from edelrep.infrastructure.filesystem.sidecar import (
 class FilesystemRepairRepository:
     """RepairRepository implementation against any StorageBackend.
 
-    Layout: ``<reg_no>/<YYYY-MM-DD>__<slug>/_repair.json``.
+    Layout: ``<vehicle_ulid>/<YYYY-MM-DD>__<slug>/_repair.json``.
     """
 
     def __init__(self, backend: StorageBackend) -> None:
@@ -38,17 +37,17 @@ class FilesystemRepairRepository:
                 continue
             data = read_backend_sidecar(self._backend, key)
             if parse_ulid(str(data["id"])) == repair_id:
-                vid = VehicleId(key.split("/", 1)[0])
+                vid = parse_ulid(key.split("/", 1)[0])
                 return _deserialise(vid, data)
         raise RepairNotFound(repair_id)
 
     def save(self, repair: Repair) -> None:
         if not self._backend.exists(vehicle_sidecar_key(repair.vehicle_id)):
-            raise VehicleNotFound(repair.vehicle_id.registration_number)
+            raise VehicleNotFound(str(repair.vehicle_id))
         dir_name = repair_dir_name(repair.date, repair.description)
         key = repair_sidecar_key(repair.vehicle_id, dir_name)
         if self._backend.exists(key):
-            raise DuplicateRepair(repair.vehicle_id.registration_number, dir_name)
+            raise DuplicateRepair(str(repair.vehicle_id), dir_name)
         write_backend_sidecar(self._backend, key, _serialise(repair))
 
     def update(self, repair: Repair) -> None:
@@ -56,19 +55,19 @@ class FilesystemRepairRepository:
             if not is_repair_sidecar_key(key):
                 continue
             data = read_backend_sidecar(self._backend, key)
-            sidecar_reg_no = key.split("/", 1)[0]
+            sidecar_vehicle = key.split("/", 1)[0]
             if (
                 parse_ulid(str(data["id"])) == repair.id
-                and sidecar_reg_no == repair.vehicle_id.registration_number
+                and sidecar_vehicle == str(repair.vehicle_id)
             ):
                 write_backend_sidecar(self._backend, key, _serialise(repair))
                 return
         raise RepairNotFound(repair.id)
 
-    def list_for_vehicle(self, vehicle_id: VehicleId) -> Iterable[Repair]:
+    def list_for_vehicle(self, vehicle_id: ULID) -> Iterable[Repair]:
         if not self._backend.exists(vehicle_sidecar_key(vehicle_id)):
             return
-        prefix = f"{vehicle_id.registration_number}/"
+        prefix = f"{vehicle_id!s}/"
         repairs: list[Repair] = []
         for key in self._backend.list_prefix(prefix):
             if not is_repair_sidecar_key(key):
@@ -88,7 +87,7 @@ def _serialise(repair: Repair) -> dict[str, object]:
     }
 
 
-def _deserialise(vehicle_id: VehicleId, data: dict[str, object]) -> Repair:
+def _deserialise(vehicle_id: ULID, data: dict[str, object]) -> Repair:
     raw_description = data.get("description")
     description = str(raw_description) if raw_description is not None else None
     return Repair(

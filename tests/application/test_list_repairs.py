@@ -6,7 +6,6 @@ from ulid import ULID
 from edelrep.application.list_repairs import ListRepairsUseCase
 from edelrep.domain.entities import Repair, Vehicle
 from edelrep.domain.exceptions import VehicleNotFound
-from edelrep.domain.value_objects import VehicleId
 
 from .fakes import InMemoryRepairRepo, InMemoryVehicleRepo
 
@@ -55,4 +54,4 @@ def test_raises_when_vehicle_missing(
 ) -> None:
     use_case = ListRepairsUseCase(vehicle_repo, repair_repo)
     with pytest.raises(VehicleNotFound):
-        use_case.execute(VehicleId("99999"))
+        use_case.execute(ULID())

@@ -1,17 +1,22 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
-{% block title %}{{ vehicle.id.registration_number }} – edelrep{% endblock %}
+{% set _title = vehicle.registration_number or vehicle.vin or (vehicle.id|string) %}
+{% block title %}{{ _title }} – edelrep{% endblock %}
 {% block content %}
 <div class="bg-white border border-stone-200 rounded-xl shadow-sm p-6 mb-6">
-  <h1 class="text-3xl font-bold tracking-tight mb-3">{{ vehicle.id.registration_number }}</h1>
-  {% if vehicle.vin %}
+  <h1 class="text-3xl font-bold tracking-tight mb-3">
+    {% if vehicle.registration_number %}{{ vehicle.registration_number }}
+    {% elif vehicle.vin %}<span class="font-mono">{{ vehicle.vin }}</span>
+    {% else %}<span class="text-stone-500 italic">Fahrzeug ohne Nummer</span>{% endif %}
+  </h1>
+  {% if vehicle.registration_number and vehicle.vin %}
     <p class="text-sm text-stone-700">{{ vehicle_labels["vin"] }}: <span class="font-mono">{{ vehicle.vin }}</span></p>
   {% endif %}
   {% if vehicle.description %}
     <p class="text-sm text-stone-700 mt-1">{{ vehicle_labels["description"] }}: {{ vehicle.description }}</p>
   {% endif %}
   <div class="mt-5">
-    <a href="/vehicles/{{ vehicle.id.registration_number }}/repairs/new"
+    <a href="/vehicles/{{ vehicle_key }}/repairs/new"
        class="inline-flex items-center gap-2 bg-[#b59775] hover:bg-[#ac8a64] text-white px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
       {{ icon("plus", "w-4 h-4") }} Reparatur
     </a>
@@ -55,7 +60,7 @@
     {% endfor %}
     </div>
     {% endif %}
-    <a href="/vehicles/{{ vehicle.id.registration_number }}/repairs/{{ r.id }}/upload"
+    <a href="/vehicles/{{ vehicle_key }}/repairs/{{ r.id }}/upload"
        class="inline-flex items-center gap-1.5 text-sm text-[#ac8a64] hover:text-[#8a6f4f] font-medium mt-3 transition-colors">
       {{ icon("image-plus", "w-4 h-4") }} Bilder hochladen
     </a>

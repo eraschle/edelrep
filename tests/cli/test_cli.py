@@ -4,10 +4,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from ulid import ULID
 
 from edelrep.cli.main import _cmd_watch, main
 from edelrep.domain.entities import Vehicle
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem import FilesystemVehicleRepository
 from edelrep.infrastructure.storage import LocalFilesystemBackend
 
@@ -17,7 +17,8 @@ def _seed_vehicle(storage_root: Path) -> None:
     repo = FilesystemVehicleRepository(backend)
     repo.save(
         Vehicle(
-            id=VehicleId("12345"),
+            id=ULID(),
+            registration_number="12345",
             vin="X",
             description="x",
             created_at=datetime(2026, 1, 1, tzinfo=UTC),
@@ -100,7 +101,8 @@ def test_watch_prints_drift_warning_when_drifted(tmp_path: Path, capsys: pytest.
     backend = LocalFilesystemBackend(storage)
     FilesystemVehicleRepository(backend).save(
         Vehicle(
-            id=VehicleId("12345"),
+            id=ULID(),
+            registration_number="12345",
             vin="X",
             description="x",
             created_at=datetime(2026, 5, 3, tzinfo=UTC),

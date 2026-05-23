@@ -4,7 +4,6 @@ from typing import Protocol, runtime_checkable
 from ulid import ULID
 
 from edelrep.domain.entities import Repair
-from edelrep.domain.value_objects import VehicleId
 
 
 @runtime_checkable
@@ -23,6 +22,6 @@ class RepairRepository(Protocol):
         """Update an existing repair. Raises :class:`RepairNotFound` if absent."""
         ...
 
-    def list_for_vehicle(self, vehicle_id: VehicleId) -> Iterable[Repair]:
+    def list_for_vehicle(self, vehicle_id: ULID) -> Iterable[Repair]:
         """Iterate the vehicle's repairs, newest first."""
         ...

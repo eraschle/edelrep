@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 from ulid import ULID
 
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.layout import (
     image_filename,
     image_key,
@@ -25,15 +24,19 @@ from edelrep.infrastructure.filesystem.layout import (
     vehicle_sidecar_path,
 )
 
+# Fixed valid ULIDs (Crockford base32, 26 chars) used to assert concrete paths.
+VID = ULID.from_str("01J9TGZP6X2K0V3W7Y8Z4QFFFF")
+VID_STR = str(VID)
+
 
 def test_vehicle_dir_uses_registration_number() -> None:
     root = Path("/storage")
-    assert vehicle_dir(root, VehicleId("12345")) == root / "12345"
+    assert vehicle_dir(root, VID) == root / VID_STR
 
 
 def test_vehicle_sidecar_path() -> None:
     root = Path("/storage")
-    assert vehicle_sidecar_path(root, VehicleId("12345")) == root / "12345" / "_vehicle.json"
+    assert vehicle_sidecar_path(root, VID) == root / VID_STR / "_vehicle.json"
 
 
 @pytest.mark.parametrize(
@@ -61,8 +64,8 @@ def test_repair_dir_name_format() -> None:
 
 def test_repair_sidecar_path() -> None:
     root = Path("/storage")
-    p = repair_sidecar_path(root, VehicleId("12345"), "2026-04-15__bremsen-vorne")
-    assert p == root / "12345" / "2026-04-15__bremsen-vorne" / "_repair.json"
+    p = repair_sidecar_path(root, VID, "2026-04-15__bremsen-vorne")
+    assert p == root / VID_STR / "2026-04-15__bremsen-vorne" / "_repair.json"
 
 
 def test_image_filename_format() -> None:
@@ -85,7 +88,7 @@ def test_image_filename_rejects_seq_out_of_range() -> None:
 
 
 def test_thumbnail_path() -> None:
-    repair_dir = Path("/storage/12345/2026-04-15__brakes")
+    repair_dir = Path(f"/storage/{VID_STR}/2026-04-15__brakes")
     thumb = thumbnail_path(repair_dir, "0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg")
     assert thumb == repair_dir / "_thumbs" / "0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"
 
@@ -110,45 +113,47 @@ def test_unique_repair_dir_name_multiple_collisions(tmp_path: Path) -> None:
 
 
 def test_vehicle_sidecar_key() -> None:
-    assert vehicle_sidecar_key(VehicleId("12345")) == "12345/_vehicle.json"
+    assert vehicle_sidecar_key(VID) == f"{VID_STR}/_vehicle.json"
 
 
 def test_repair_sidecar_key() -> None:
-    key = repair_sidecar_key(VehicleId("12345"), "2026-04-15__brakes")
-    assert key == "12345/2026-04-15__brakes/_repair.json"
+    key = repair_sidecar_key(VID, "2026-04-15__brakes")
+    assert key == f"{VID_STR}/2026-04-15__brakes/_repair.json"
 
 
 def test_image_key_format() -> None:
     assert (
         image_key(
-            VehicleId("12345"),
+            VID,
             "2026-04-15__brakes",
             "0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg",
         )
-        == "12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"
+        == f"{VID_STR}/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"
     )
 
 
 def test_thumbnail_key_format() -> None:
     assert (
         thumbnail_key(
-            VehicleId("12345"),
+            VID,
             "2026-04-15__brakes",
             "0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg",
         )
-        == "12345/2026-04-15__brakes/_thumbs/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"
+        == f"{VID_STR}/2026-04-15__brakes/_thumbs/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"
     )
 
 
 @pytest.mark.parametrize(
     ("key", "expected"),
     [
-        ("12345/_vehicle.json", True),
-        ("12345/2026-04-15__brakes/_repair.json", False),
+        (f"{VID_STR}/_vehicle.json", True),
+        (f"{VID_STR}/2026-04-15__brakes/_repair.json", False),
         ("_system/inbox/foo.eml", False),
-        ("12345/_vehicle.json/extra", False),
-        ("12345/", False),
+        (f"{VID_STR}/_vehicle.json/extra", False),
+        (f"{VID_STR}/", False),
         ("", False),
+        # Previously valid registration-number-as-key shapes are now rejected.
+        ("12345/_vehicle.json", False),
     ],
 )
 def test_is_vehicle_sidecar_key(key: str, expected: bool) -> None:
@@ -158,11 +163,13 @@ def test_is_vehicle_sidecar_key(key: str, expected: bool) -> None:
 @pytest.mark.parametrize(
     ("key", "expected"),
     [
-        ("12345/2026-04-15__brakes/_repair.json", True),
-        ("12345/_vehicle.json", False),
-        ("12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", False),
-        ("12345/2026-04-15__BRAKES/_repair.json", False),
+        (f"{VID_STR}/2026-04-15__brakes/_repair.json", True),
+        (f"{VID_STR}/_vehicle.json", False),
+        (f"{VID_STR}/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", False),
+        (f"{VID_STR}/2026-04-15__BRAKES/_repair.json", False),
         ("_system/inbox/_repair.json", False),
+        # Previously valid registration-number-as-key shape is now rejected.
+        ("12345/2026-04-15__brakes/_repair.json", False),
     ],
 )
 def test_is_repair_sidecar_key(key: str, expected: bool) -> None:
@@ -172,11 +179,13 @@ def test_is_repair_sidecar_key(key: str, expected: bool) -> None:
 @pytest.mark.parametrize(
     ("key", "expected"),
     [
-        ("12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", True),
-        ("12345/2026-04-15__brakes/_thumbs/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", False),
-        ("12345/2026-04-15__brakes/_repair.json", False),
-        ("12345/_vehicle.json", False),
-        ("12345/2026-04-15__brakes/badname.jpg", False),
+        (f"{VID_STR}/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", True),
+        (f"{VID_STR}/2026-04-15__brakes/_thumbs/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", False),
+        (f"{VID_STR}/2026-04-15__brakes/_repair.json", False),
+        (f"{VID_STR}/_vehicle.json", False),
+        (f"{VID_STR}/2026-04-15__brakes/badname.jpg", False),
+        # Previously valid registration-number-as-key shape is now rejected.
+        ("12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg", False),
     ],
 )
 def test_is_image_key(key: str, expected: bool) -> None:
@@ -184,18 +193,17 @@ def test_is_image_key(key: str, expected: bool) -> None:
 
 
 def test_image_sidecar_key_replaces_extension_with_json() -> None:
-    vid = VehicleId("12345")
-    key = image_sidecar_key(vid, "2026-05-10__brakes", "0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg")
-    assert key == "12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json"
+    key = image_sidecar_key(VID, "2026-05-10__brakes", "0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg")
+    assert key == f"{VID_STR}/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json"
 
 
 def test_is_image_sidecar_key_accepts_valid() -> None:
-    assert is_image_sidecar_key("12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json")
+    assert is_image_sidecar_key(f"{VID_STR}/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json")
 
 
 def test_is_image_sidecar_key_rejects_repair_sidecar() -> None:
-    assert not is_image_sidecar_key("12345/2026-05-10__brakes/_repair.json")
+    assert not is_image_sidecar_key(f"{VID_STR}/2026-05-10__brakes/_repair.json")
 
 
 def test_is_image_sidecar_key_rejects_image_jpg() -> None:
-    assert not is_image_sidecar_key("12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg")
+    assert not is_image_sidecar_key(f"{VID_STR}/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg")

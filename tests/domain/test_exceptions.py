@@ -3,12 +3,15 @@ from ulid import ULID
 
 from edelrep.domain.exceptions import (
     DomainError,
+    DuplicateRegistrationNumber,
     DuplicateRepair,
-    DuplicateVehicle,
+    DuplicateVin,
     ImageNotFound,
-    InvalidVehicleId,
+    InvalidRegistrationNumber,
+    InvalidVin,
     RepairNotFound,
     SidecarSchemaError,
+    VehicleIdentifierRequired,
     VehicleNotFound,
 )
 
@@ -16,11 +19,14 @@ from edelrep.domain.exceptions import (
 @pytest.mark.parametrize(
     "exc_cls",
     [
-        InvalidVehicleId,
+        InvalidRegistrationNumber,
+        InvalidVin,
+        VehicleIdentifierRequired,
         VehicleNotFound,
         RepairNotFound,
         ImageNotFound,
-        DuplicateVehicle,
+        DuplicateRegistrationNumber,
+        DuplicateVin,
         DuplicateRepair,
         SidecarSchemaError,
     ],
@@ -31,7 +37,7 @@ def test_all_inherit_from_domain_error(exc_cls: type[Exception]) -> None:
 
 def test_vehicle_not_found_carries_id() -> None:
     err = VehicleNotFound("12345")
-    assert err.registration_number == "12345"
+    assert err.identifier == "12345"
     assert "12345" in str(err)
 
 
@@ -49,9 +55,19 @@ def test_image_not_found_carries_id() -> None:
     assert str(iid) in str(err)
 
 
-def test_duplicate_vehicle_carries_id() -> None:
-    err = DuplicateVehicle("12345")
-    assert err.registration_number == "12345"
+def test_duplicate_registration_carries_value() -> None:
+    err = DuplicateRegistrationNumber("12345")
+    assert err.value == "12345"
+
+
+def test_duplicate_vin_carries_value() -> None:
+    err = DuplicateVin("WDB123")
+    assert err.value == "WDB123"
+
+
+def test_vehicle_identifier_required_message() -> None:
+    err = VehicleIdentifierRequired()
+    assert "Stammnummer" in str(err)
 
 
 def test_sidecar_schema_error_carries_fields() -> None:

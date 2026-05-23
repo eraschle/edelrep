@@ -15,14 +15,13 @@ from edelrep.domain.ports import (
     StorageBackend,
     VehicleRepository,
 )
-from edelrep.domain.value_objects import VehicleId
 
 
 class _FakeVehicleRepo:
     def __init__(self) -> None:
-        self._store: dict[VehicleId, Vehicle] = {}
+        self._store: dict[ULID, Vehicle] = {}
 
-    def get(self, vehicle_id: VehicleId) -> Vehicle:
+    def get(self, vehicle_id: ULID) -> Vehicle:
         return self._store[vehicle_id]
 
     def save(self, vehicle: Vehicle) -> None:
@@ -34,8 +33,20 @@ class _FakeVehicleRepo:
     def list_all(self) -> Iterable[Vehicle]:
         return list(self._store.values())
 
-    def exists(self, vehicle_id: VehicleId) -> bool:
+    def exists(self, vehicle_id: ULID) -> bool:
         return vehicle_id in self._store
+
+    def find_by_registration(self, registration_number: str) -> Vehicle | None:
+        for v in self._store.values():
+            if v.registration_number == registration_number:
+                return v
+        return None
+
+    def find_by_vin(self, vin: str) -> Vehicle | None:
+        for v in self._store.values():
+            if v.vin == vin:
+                return v
+        return None
 
 
 class _FakeRepairRepo:
@@ -51,7 +62,7 @@ class _FakeRepairRepo:
     def update(self, repair: Repair) -> None:
         self._store[repair.id] = repair
 
-    def list_for_vehicle(self, vehicle_id: VehicleId) -> Iterable[Repair]:
+    def list_for_vehicle(self, vehicle_id: ULID) -> Iterable[Repair]:
         return [r for r in self._store.values() if r.vehicle_id == vehicle_id]
 
 
@@ -70,7 +81,6 @@ class _FakeImageRepo:
         thumbnail_bytes: bytes | None = None,
     ) -> None:
         self._store[image.id] = image
-        # raw_bytes/thumbnail_bytes intentionally ignored in this fake
 
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         return [i for i in self._store.values() if i.repair_id == repair_id]
@@ -119,7 +129,7 @@ class _FakeStorage:
 
 class _FakeSearchIndex:
     def __init__(self) -> None:
-        self._rows: dict[VehicleId, Vehicle] = {}
+        self._rows: dict[ULID, Vehicle] = {}
 
     def search_vehicles(self, query: str, limit: int = 20) -> Iterable[Vehicle]:
         return list(self._rows.values())[:limit]
@@ -130,7 +140,7 @@ class _FakeSearchIndex:
     def upsert_vehicle(self, vehicle: Vehicle) -> None:
         self._rows[vehicle.id] = vehicle
 
-    def remove_vehicle(self, vehicle_id: VehicleId) -> None:
+    def remove_vehicle(self, vehicle_id: ULID) -> None:
         self._rows.pop(vehicle_id, None)
 
     def clear(self) -> None:

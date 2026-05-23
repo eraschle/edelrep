@@ -8,7 +8,6 @@ from ulid import ULID
 
 from edelrep.domain.entities import Repair, Vehicle
 from edelrep.domain.ports import SearchIndex
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.index import (
     SqliteIndexProjector,
     SqliteSearchIndex,
@@ -16,9 +15,10 @@ from edelrep.infrastructure.index import (
 )
 
 
-def _v(reg: str, vin: str = "X", description: str = "") -> Vehicle:
+def _v(reg: str, vin: str | None = None, description: str = "") -> Vehicle:
     return Vehicle(
-        id=VehicleId(reg),
+        id=ULID(),
+        registration_number=reg,
         vin=vin or None,
         description=description or None,
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
@@ -41,7 +41,7 @@ def test_search_by_registration_number(conn: sqlite3.Connection, lock: threading
     idx.upsert_vehicle(_v("12345"))
     idx.upsert_vehicle(_v("99999"))
     results = list(idx.search_vehicles("12345"))
-    assert [v.id.registration_number for v in results] == ["12345"]
+    assert [v.registration_number for v in results] == ["12345"]
 
 
 def test_search_by_vin(conn: sqlite3.Connection, lock: threading.RLock) -> None:
@@ -49,7 +49,7 @@ def test_search_by_vin(conn: sqlite3.Connection, lock: threading.RLock) -> None:
     idx.upsert_vehicle(_v("12345", vin="WDB123ABC"))
     idx.upsert_vehicle(_v("99999", vin="OTHERVIN"))
     results = list(idx.search_vehicles("WDB"))
-    assert [v.id.registration_number for v in results] == ["12345"]
+    assert [v.registration_number for v in results] == ["12345"]
 
 
 def test_search_by_description_token(conn: sqlite3.Connection, lock: threading.RLock) -> None:
@@ -57,7 +57,7 @@ def test_search_by_description_token(conn: sqlite3.Connection, lock: threading.R
     idx.upsert_vehicle(_v("12345", description="Kran 4-achsig"))
     idx.upsert_vehicle(_v("99999", description="Lieferwagen"))
     results = list(idx.search_vehicles("Kran"))
-    assert [v.id.registration_number for v in results] == ["12345"]
+    assert [v.registration_number for v in results] == ["12345"]
 
 
 def test_search_respects_limit(conn: sqlite3.Connection, lock: threading.RLock) -> None:
@@ -70,8 +70,26 @@ def test_search_respects_limit(conn: sqlite3.Connection, lock: threading.RLock) 
 
 def test_upsert_replaces_existing(conn: sqlite3.Connection, lock: threading.RLock) -> None:
     idx = SqliteSearchIndex(conn, lock)
-    idx.upsert_vehicle(_v("12345", description="oldterm"))
-    idx.upsert_vehicle(_v("12345", description="newterm"))
+    # Same vehicle id so the upsert truly replaces rather than inserting a second row.
+    vid = ULID()
+    idx.upsert_vehicle(
+        Vehicle(
+            id=vid,
+            registration_number="12345",
+            vin="X",
+            description="oldterm",
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+    )
+    idx.upsert_vehicle(
+        Vehicle(
+            id=vid,
+            registration_number="12345",
+            vin="X",
+            description="newterm",
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+    )
     new_hits = list(idx.search_vehicles("newterm"))
     old_hits = list(idx.search_vehicles("oldterm"))
     assert len(new_hits) == 1
@@ -80,15 +98,15 @@ def test_upsert_replaces_existing(conn: sqlite3.Connection, lock: threading.RLoc
 
 def test_remove_vehicle(conn: sqlite3.Connection, lock: threading.RLock) -> None:
     idx = SqliteSearchIndex(conn, lock)
-    vid = VehicleId("12345")
-    idx.upsert_vehicle(_v("12345"))
-    idx.remove_vehicle(vid)
+    v = _v("12345")
+    idx.upsert_vehicle(v)
+    idx.remove_vehicle(v.id)
     assert list(idx.search_vehicles("12345")) == []
 
 
 def test_remove_missing_is_noop(conn: sqlite3.Connection, lock: threading.RLock) -> None:
     idx = SqliteSearchIndex(conn, lock)
-    idx.remove_vehicle(VehicleId("never-existed"))
+    idx.remove_vehicle(ULID())
 
 
 def test_clear(conn: sqlite3.Connection, lock: threading.RLock) -> None:
@@ -104,7 +122,7 @@ def test_search_falls_back_to_like_for_short_queries(conn: sqlite3.Connection, l
     idx = SqliteSearchIndex(conn, lock)
     idx.upsert_vehicle(_v("12345"))
     results = list(idx.search_vehicles("12"))
-    assert any(v.id.registration_number == "12345" for v in results)
+    assert any(v.registration_number == "12345" for v in results)
 
 
 def test_search_handles_special_characters(conn: sqlite3.Connection, lock: threading.RLock) -> None:
@@ -132,10 +150,18 @@ def test_list_vehicles_by_activity_orders_by_latest_repair(tmp_path: Path) -> No
     index = SqliteSearchIndex(conn, lock)
     try:
         old = Vehicle(
-            id=VehicleId("AAA"), vin=None, description=None, created_at=datetime(2026, 1, 1, tzinfo=UTC)
+            id=ULID(),
+            registration_number="AAA",
+            vin=None,
+            description=None,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
         new = Vehicle(
-            id=VehicleId("BBB"), vin=None, description=None, created_at=datetime(2026, 1, 1, tzinfo=UTC)
+            id=ULID(),
+            registration_number="BBB",
+            vin=None,
+            description=None,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
         projector.upsert_vehicle(old)
         projector.upsert_vehicle(new)
@@ -150,8 +176,8 @@ def test_list_vehicles_by_activity_orders_by_latest_repair(tmp_path: Path) -> No
         projector.upsert_repair(recent_repair)
 
         results = list(index.list_vehicles_by_activity(limit=10))
-        ids = [v.id.registration_number for v in results]
-        assert ids.index("BBB") < ids.index("AAA")
+        regs = [v.registration_number for v in results]
+        assert regs.index("BBB") < regs.index("AAA")
     finally:
         conn.close()
 
@@ -171,15 +197,23 @@ def test_list_vehicles_by_activity_uses_created_at_when_no_activity(tmp_path: Pa
     index = SqliteSearchIndex(conn, lock)
     try:
         older = Vehicle(
-            id=VehicleId("AAA"), vin=None, description=None, created_at=datetime(2026, 1, 1, tzinfo=UTC)
+            id=ULID(),
+            registration_number="AAA",
+            vin=None,
+            description=None,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
         newer = Vehicle(
-            id=VehicleId("BBB"), vin=None, description=None, created_at=datetime(2026, 5, 1, tzinfo=UTC)
+            id=ULID(),
+            registration_number="BBB",
+            vin=None,
+            description=None,
+            created_at=datetime(2026, 5, 1, tzinfo=UTC),
         )
         projector.upsert_vehicle(older)
         projector.upsert_vehicle(newer)
         results = list(index.list_vehicles_by_activity(limit=10))
-        ids = [v.id.registration_number for v in results]
-        assert ids.index("BBB") < ids.index("AAA")
+        regs = [v.registration_number for v in results]
+        assert regs.index("BBB") < regs.index("AAA")
     finally:
         conn.close()

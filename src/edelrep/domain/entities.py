@@ -5,7 +5,11 @@ from enum import StrEnum
 from ulid import ULID
 
 from edelrep.domain._datetime_guards import require_aware as _require_aware
-from edelrep.domain.value_objects import VehicleId
+from edelrep.domain.exceptions import VehicleIdentifierRequired
+from edelrep.domain.value_objects import (
+    validate_registration_number,
+    validate_vin,
+)
 
 
 class ImageSource(StrEnum):
@@ -15,19 +19,30 @@ class ImageSource(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Vehicle:
-    id: VehicleId
+    id: ULID
+    registration_number: str | None
     vin: str | None
     description: str | None
     created_at: datetime
 
     def __post_init__(self) -> None:
         _require_aware(self.created_at, "created_at")
+        if self.registration_number is not None:
+            object.__setattr__(
+                self,
+                "registration_number",
+                validate_registration_number(self.registration_number),
+            )
+        if self.vin is not None:
+            object.__setattr__(self, "vin", validate_vin(self.vin))
+        if self.registration_number is None and self.vin is None:
+            raise VehicleIdentifierRequired
 
 
 @dataclass(frozen=True, slots=True)
 class Repair:
     id: ULID
-    vehicle_id: VehicleId
+    vehicle_id: ULID
     date: date
     description: str | None
     created_at: datetime

@@ -4,8 +4,9 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+from ulid import ULID
+
 from edelrep.domain.entities import Vehicle
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem import (
     FilesystemImageRepository,
     FilesystemRepairRepository,
@@ -58,7 +59,8 @@ def test_external_vehicle_appears_in_search_within_sla(tmp_path: Path) -> None:
     try:
         vrepo.save(
             Vehicle(
-                id=VehicleId("12345"),
+                id=ULID(),
+                registration_number="12345",
                 vin="W",
                 description="liveindex",
                 created_at=datetime(2026, 5, 3, tzinfo=UTC),
@@ -73,7 +75,7 @@ def test_external_vehicle_appears_in_search_within_sla(tmp_path: Path) -> None:
                 break
             time.sleep(0.1)
         assert results, f"Watcher did not propagate vehicle within {WATCH_DEADLINE_SECONDS}s"
-        assert results[0].id.registration_number == "12345"
+        assert results[0].registration_number == "12345"
     finally:
         live.stop()
         conn.close()
@@ -83,7 +85,8 @@ def test_drift_detected_at_start_when_sidecar_newer_than_index(tmp_path: Path) -
     _, vrepo, rrepo, irepo, conn, lock, storage_root = _build_components(tmp_path)
     vrepo.save(
         Vehicle(
-            id=VehicleId("12345"),
+            id=ULID(),
+            registration_number="12345",
             vin="W",
             description="x",
             created_at=datetime(2026, 5, 3, tzinfo=UTC),

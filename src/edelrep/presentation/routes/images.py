@@ -6,12 +6,11 @@ from ulid import ULID
 from edelrep.domain.exceptions import (
     DuplicateImage,
     ImageNotFound,
-    InvalidVehicleId,
     RepairNotFound,
     VehicleNotFound,
 )
-from edelrep.domain.value_objects import VehicleId
 from edelrep.presentation.dependencies import ContainerDep
+from edelrep.presentation.vehicle_lookup import resolve_vehicle, vehicle_url_key
 
 router = APIRouter()
 
@@ -21,37 +20,35 @@ class CommentPayload(BaseModel):
 
 
 @router.get(
-    "/vehicles/{registration_number}/repairs/{repair_id}/upload",
+    "/vehicles/{vehicle_key}/repairs/{repair_id}/upload",
     response_class=HTMLResponse,
 )
 def upload_form(
     request: Request,
     container: ContainerDep,
-    registration_number: str,
+    vehicle_key: str,
     repair_id: str,
 ) -> HTMLResponse:
     try:
-        vehicle_id = VehicleId(registration_number)
-        if not container.vehicle_repo.exists(vehicle_id):
-            raise VehicleNotFound(registration_number)
-    except (VehicleNotFound, InvalidVehicleId) as exc:
+        vehicle = resolve_vehicle(container.vehicle_repo, vehicle_key)
+    except VehicleNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request,
         "upload_image.html",
-        {"registration_number": registration_number, "repair_id": repair_id},
+        {"vehicle_key": vehicle_url_key(vehicle), "repair_id": repair_id},
     )
 
 
 @router.post(
-    "/vehicles/{registration_number}/repairs/{repair_id}/images",
+    "/vehicles/{vehicle_key}/repairs/{repair_id}/images",
     response_model=None,
 )
 def upload_image(
     request: Request,
     container: ContainerDep,
-    registration_number: str,
+    vehicle_key: str,
     repair_id: str,
     image: UploadFile,
     comment: str = Form(""),
@@ -63,6 +60,13 @@ def upload_image(
         if wants_json:
             return JSONResponse({"error": str(exc)}, status_code=404)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        vehicle = resolve_vehicle(container.vehicle_repo, vehicle_key)
+    except VehicleNotFound as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=404)
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    canonical_key = vehicle_url_key(vehicle)
     raw = image.file.read()
     try:
         saved = container.upload_image.execute(
@@ -86,7 +90,7 @@ def upload_image(
     if wants_json:
         return JSONResponse({"image_id": str(saved.id)}, status_code=201)
     return RedirectResponse(
-        url=f"/vehicles/{registration_number}",
+        url=f"/vehicles/{canonical_key}",
         status_code=303,
     )
 

@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from ulid import ULID
 
 from edelrep.domain.entities import Vehicle
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.json_codec import parse_aware_datetime
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
@@ -30,7 +29,7 @@ class SqliteSearchIndex:
                 with self._lock:
                     cur = self._conn.execute(
                         """
-                        SELECT v.registration_number, v.vin, v.description, v.created_at
+                        SELECT v.id, v.registration_number, v.vin, v.description, v.created_at
                         FROM vehicles v
                         JOIN vehicles_fts f ON v.rowid = f.rowid
                         WHERE vehicles_fts MATCH ?
@@ -48,9 +47,9 @@ class SqliteSearchIndex:
         with self._lock:
             cur = self._conn.execute(
                 """
-                SELECT registration_number, vin, description, created_at
+                SELECT id, registration_number, vin, description, created_at
                 FROM vehicles
-                WHERE registration_number LIKE ?
+                WHERE (registration_number IS NOT NULL AND registration_number LIKE ?)
                    OR (vin IS NOT NULL AND vin LIKE ?)
                    OR (description IS NOT NULL AND description LIKE ?)
                 LIMIT ?
@@ -65,12 +64,12 @@ class SqliteSearchIndex:
         with self._lock:
             rows = self._conn.execute(
                 """
-                SELECT v.registration_number, v.vin, v.description, v.created_at,
+                SELECT v.id, v.registration_number, v.vin, v.description, v.created_at,
                        (SELECT MAX(id) FROM repairs
-                        WHERE registration_number = v.registration_number) AS last_repair_id,
+                        WHERE vehicle_id = v.id) AS last_repair_id,
                        (SELECT MAX(i.id) FROM images i
                         JOIN repairs r ON r.id = i.repair_id
-                        WHERE r.registration_number = v.registration_number) AS last_image_id
+                        WHERE r.vehicle_id = v.id) AS last_image_id
                 FROM vehicles v
                 """
             ).fetchall()
@@ -92,26 +91,28 @@ class SqliteSearchIndex:
         with self._lock:
             self._conn.execute(
                 """
-                INSERT INTO vehicles (registration_number, vin, description, created_at, fs_mtime)
-                VALUES (?, ?, ?, ?, NULL)
-                ON CONFLICT(registration_number) DO UPDATE SET
+                INSERT INTO vehicles (id, registration_number, vin, description, created_at, fs_mtime)
+                VALUES (?, ?, ?, ?, ?, NULL)
+                ON CONFLICT(id) DO UPDATE SET
+                    registration_number = excluded.registration_number,
                     vin = excluded.vin,
                     description = excluded.description,
                     created_at = excluded.created_at
                 """,
                 (
-                    vehicle.id.registration_number,
+                    str(vehicle.id),
+                    vehicle.registration_number,
                     vehicle.vin,
                     vehicle.description,
                     vehicle.created_at.isoformat(),
                 ),
             )
 
-    def remove_vehicle(self, vehicle_id: VehicleId) -> None:
+    def remove_vehicle(self, vehicle_id: ULID) -> None:
         with self._lock:
             self._conn.execute(
-                "DELETE FROM vehicles WHERE registration_number = ?",
-                (vehicle_id.registration_number,),
+                "DELETE FROM vehicles WHERE id = ?",
+                (str(vehicle_id),),
             )
 
     def clear(self) -> None:
@@ -123,7 +124,8 @@ def _row_to_vehicle(row: sqlite3.Row) -> Vehicle:
     created_at_raw = row["created_at"]
     created_at: datetime = parse_aware_datetime(created_at_raw) if created_at_raw else datetime.now(UTC)
     return Vehicle(
-        id=VehicleId(row["registration_number"]),
+        id=ULID.from_str(row["id"]),
+        registration_number=row["registration_number"],
         vin=row["vin"],
         description=row["description"],
         created_at=created_at,

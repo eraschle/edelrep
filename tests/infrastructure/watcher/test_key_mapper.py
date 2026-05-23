@@ -32,21 +32,26 @@ def test_path_to_key_outside_root_returns_none(tmp_path: Path) -> None:
     assert path_to_key(other, root) is None
 
 
+_VID = "01J9TGZP6X2K0V3W7Y8Z4QFFFF"
+
+
 @pytest.mark.parametrize(
     ("key", "expected"),
     [
-        ("12345/_vehicle.json", EntityKind.VEHICLE),
-        ("12345/2026-04-15__brakes/_repair.json", EntityKind.REPAIR),
+        (f"{_VID}/_vehicle.json", EntityKind.VEHICLE),
+        (f"{_VID}/2026-04-15__brakes/_repair.json", EntityKind.REPAIR),
         (
-            "12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg",
+            f"{_VID}/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg",
             EntityKind.IMAGE,
         ),
         (
-            "12345/2026-04-15__brakes/_thumbs/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg",
+            f"{_VID}/2026-04-15__brakes/_thumbs/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg",
             EntityKind.THUMBNAIL,
         ),
         ("_system/inbox/foo.eml", EntityKind.IGNORED),
-        ("12345/random.txt", EntityKind.IGNORED),
+        (f"{_VID}/random.txt", EntityKind.IGNORED),
+        # Legacy registration-number keys no longer match — must be IGNORED:
+        ("12345/_vehicle.json", EntityKind.IGNORED),
     ],
 )
 def test_classify(key: str, expected: EntityKind) -> None:

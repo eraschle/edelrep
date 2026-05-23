@@ -1,8 +1,9 @@
 from collections.abc import Iterable
 from typing import Protocol, runtime_checkable
 
+from ulid import ULID
+
 from edelrep.domain.entities import Vehicle
-from edelrep.domain.value_objects import VehicleId
 
 
 @runtime_checkable
@@ -30,7 +31,7 @@ class SearchIndex(Protocol):
         """Insert or update the index row for ``vehicle``."""
         ...
 
-    def remove_vehicle(self, vehicle_id: VehicleId) -> None:
+    def remove_vehicle(self, vehicle_id: ULID) -> None:
         """Drop the index row. No-op if absent."""
         ...
 

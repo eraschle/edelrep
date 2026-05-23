@@ -7,7 +7,6 @@ from ulid import ULID
 from edelrep.application.update_image_comment import UpdateImageCommentUseCase
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
 from edelrep.domain.exceptions import ImageNotFound
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem import (
     FilesystemImageRepository,
     FilesystemRepairRepository,
@@ -21,7 +20,13 @@ def _bootstrap(tmp_path: Path):
     vrepo = FilesystemVehicleRepository(backend)
     rrepo = FilesystemRepairRepository(backend)
     irepo = FilesystemImageRepository(backend)
-    vehicle = Vehicle(id=VehicleId("12345"), vin=None, description=None, created_at=datetime.now(UTC))
+    vehicle = Vehicle(
+        id=ULID(),
+        registration_number="12345",
+        vin=None,
+        description=None,
+        created_at=datetime.now(UTC),
+    )
     vrepo.save(vehicle)
     repair = Repair(
         id=ULID(),

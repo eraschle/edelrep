@@ -5,19 +5,20 @@ from pathlib import Path
 
 from ulid import ULID
 
-from edelrep.domain.value_objects import VehicleId
-
 _SLUG_MAX_LEN = 40
 _SLUG_FALLBACK = "repair"
 _SLUG_NORMALISE_RE = re.compile(r"[^a-z0-9]+")
 _SLUG_TRIM_RE = re.compile(r"^-+|-+$")
 
+# Crockford base32 alphabet used by ulid-py (uppercase, 26 chars).
+_ULID_RE = r"[0-9A-HJKMNP-TV-Z]{26}"
 
-def vehicle_dir(root: Path, vehicle_id: VehicleId) -> Path:
-    return root / vehicle_id.registration_number
+
+def vehicle_dir(root: Path, vehicle_id: ULID) -> Path:
+    return root / str(vehicle_id)
 
 
-def vehicle_sidecar_path(root: Path, vehicle_id: VehicleId) -> Path:
+def vehicle_sidecar_path(root: Path, vehicle_id: ULID) -> Path:
     return vehicle_dir(root, vehicle_id) / "_vehicle.json"
 
 
@@ -37,7 +38,7 @@ def repair_dir_name(repair_date: date, description: str | None) -> str:
     return f"{repair_date.isoformat()}__{slugify(description)}"
 
 
-def repair_sidecar_path(root: Path, vehicle_id: VehicleId, dir_name: str) -> Path:
+def repair_sidecar_path(root: Path, vehicle_id: ULID, dir_name: str) -> Path:
     return vehicle_dir(root, vehicle_id) / dir_name / "_repair.json"
 
 
@@ -64,29 +65,29 @@ def unique_repair_dir_name(parent: Path, base: str) -> str:
     return f"{base}-{n}"
 
 
-_VEHICLE_SIDECAR_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/_vehicle\.json$")
+_VEHICLE_SIDECAR_KEY_RE = re.compile(rf"^{_ULID_RE}/_vehicle\.json$")
 _REPAIR_SIDECAR_KEY_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/\d{4}-\d{2}-\d{2}__[a-z0-9-]+/_repair\.json$"
+    rf"^{_ULID_RE}/\d{{4}}-\d{{2}}-\d{{2}}__[a-z0-9-]+/_repair\.json$"
 )
 _IMAGE_KEY_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/\d{4}-\d{2}-\d{2}__[a-z0-9-]+/\d{4}_[0-9A-HJKMNP-TV-Z]{26}\.[a-zA-Z0-9]+$"
+    rf"^{_ULID_RE}/\d{{4}}-\d{{2}}-\d{{2}}__[a-z0-9-]+/\d{{4}}_[0-9A-HJKMNP-TV-Z]{{26}}\.[a-zA-Z0-9]+$"
 )
 
 
-def vehicle_sidecar_key(vehicle_id: VehicleId) -> str:
-    return f"{vehicle_id.registration_number}/_vehicle.json"
+def vehicle_sidecar_key(vehicle_id: ULID) -> str:
+    return f"{vehicle_id!s}/_vehicle.json"
 
 
-def repair_sidecar_key(vehicle_id: VehicleId, dir_name: str) -> str:
-    return f"{vehicle_id.registration_number}/{dir_name}/_repair.json"
+def repair_sidecar_key(vehicle_id: ULID, dir_name: str) -> str:
+    return f"{vehicle_id!s}/{dir_name}/_repair.json"
 
 
-def image_key(vehicle_id: VehicleId, dir_name: str, filename: str) -> str:
-    return f"{vehicle_id.registration_number}/{dir_name}/{filename}"
+def image_key(vehicle_id: ULID, dir_name: str, filename: str) -> str:
+    return f"{vehicle_id!s}/{dir_name}/{filename}"
 
 
-def thumbnail_key(vehicle_id: VehicleId, dir_name: str, filename: str) -> str:
-    return f"{vehicle_id.registration_number}/{dir_name}/_thumbs/{filename}"
+def thumbnail_key(vehicle_id: ULID, dir_name: str, filename: str) -> str:
+    return f"{vehicle_id!s}/{dir_name}/_thumbs/{filename}"
 
 
 def is_vehicle_sidecar_key(key: str) -> bool:
@@ -106,13 +107,13 @@ def is_image_key(key: str) -> bool:
 
 
 _IMAGE_SIDECAR_KEY_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/\d{4}-\d{2}-\d{2}__[a-z0-9-]+/\d{4}_[0-9A-HJKMNP-TV-Z]{26}\.json$"
+    rf"^{_ULID_RE}/\d{{4}}-\d{{2}}-\d{{2}}__[a-z0-9-]+/\d{{4}}_[0-9A-HJKMNP-TV-Z]{{26}}\.json$"
 )
 
 
-def image_sidecar_key(vehicle_id: VehicleId, dir_name: str, image_filename_value: str) -> str:
+def image_sidecar_key(vehicle_id: ULID, dir_name: str, image_filename_value: str) -> str:
     stem = image_filename_value.rsplit(".", 1)[0]
-    return f"{vehicle_id.registration_number}/{dir_name}/{stem}.json"
+    return f"{vehicle_id!s}/{dir_name}/{stem}.json"
 
 
 def is_image_sidecar_key(key: str) -> bool:
