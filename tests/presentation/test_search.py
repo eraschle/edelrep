@@ -91,3 +91,45 @@ def test_search_suggestions_no_matches_message(client: TestClient) -> None:
     r = client.get("/search/suggestions?q=Z9Z9Z9")
     assert r.status_code == 200
     assert "Keine Treffer" in r.text or "Keine Fahrzeuge" in r.text
+
+
+def test_search_suggestions_finds_by_description_token(
+    client: TestClient, container: Container
+) -> None:
+    """End-to-end regression: searching for a token contained in a vehicle's
+    Bezeichnung must surface the vehicle even when the Stammnummer doesn't
+    match the query."""
+    container.create_vehicle.execute(
+        registration_number="12345",
+        vin=None,
+        description="Kran 4-achsig",
+    )
+    container.create_vehicle.execute(
+        registration_number="99999",
+        vin=None,
+        description="Lieferwagen",
+    )
+    container.projector.full_rebuild(
+        container.vehicle_repo, container.repair_repo, container.image_repo
+    )
+    r = client.get("/search/suggestions?q=Kran")
+    assert r.status_code == 200
+    assert "12345" in r.text
+    assert "99999" not in r.text
+
+
+def test_search_suggestions_finds_by_description_with_typo(
+    client: TestClient, container: Container
+) -> None:
+    """The fuzzy layer must tolerate small typos when matching the Bezeichnung."""
+    container.create_vehicle.execute(
+        registration_number="55555",
+        vin=None,
+        description="Lieferwagen mit Hebebühne",
+    )
+    container.projector.full_rebuild(
+        container.vehicle_repo, container.repair_repo, container.image_repo
+    )
+    r = client.get("/search/suggestions?q=Lieferwgen")  # missing 'a'
+    assert r.status_code == 200
+    assert "55555" in r.text

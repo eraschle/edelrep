@@ -73,3 +73,18 @@ def test_limit_zero_raises() -> None:
     uc = SearchVehicleUseCase(_FakeIndex([]), _NeverMatcher())
     with pytest.raises(ValueError):
         uc.execute("", limit=0)
+
+
+def test_real_fuzzy_finds_vehicle_by_description_substring() -> None:
+    """Regression: searching for a single token contained in the Bezeichnung
+    must score above the threshold with the production fuzzy matcher.
+
+    The use case relies on rapidfuzz's WRatio; small queries against longer
+    descriptions used to be the most fragile case, so guard it explicitly."""
+    from edelrep.infrastructure.search.rapidfuzz_matcher import RapidFuzzMatcher
+
+    target = _vehicle("12345", desc="Kran 4-achsig")
+    other = _vehicle("99999", desc="Lieferwagen")
+    uc = SearchVehicleUseCase(_FakeIndex([target, other]), RapidFuzzMatcher())
+    result = uc.execute("Kran")
+    assert [v.registration_number for v in result] == ["12345"]
