@@ -24,7 +24,7 @@ class CreateRepairUseCase:
         *,
         vehicle_id: VehicleId,
         repair_date: _date,
-        description: str,
+        description: str | None,
     ) -> Repair:
         if not self._vehicle_repo.exists(vehicle_id):
             raise VehicleNotFound(vehicle_id.registration_number)

@@ -89,10 +89,12 @@ def _serialise(repair: Repair) -> dict[str, object]:
 
 
 def _deserialise(vehicle_id: VehicleId, data: dict[str, object]) -> Repair:
+    raw_description = data.get("description")
+    description = str(raw_description) if raw_description is not None else None
     return Repair(
         id=parse_ulid(str(data["id"])),
         vehicle_id=vehicle_id,
         date=parse_date(str(data["date"])),
-        description=str(data["description"]),
+        description=description,
         created_at=parse_aware_datetime(str(data["created_at"])),
     )

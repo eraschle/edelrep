@@ -21,7 +21,9 @@ def vehicle_sidecar_path(root: Path, vehicle_id: VehicleId) -> Path:
     return vehicle_dir(root, vehicle_id) / "_vehicle.json"
 
 
-def slugify(description: str) -> str:
+def slugify(description: str | None) -> str:
+    if not description:
+        return _SLUG_FALLBACK
     normalised = unicodedata.normalize("NFKD", description)
     ascii_only = normalised.encode("ascii", "ignore").decode("ascii").lower()
     hyphenated = _SLUG_NORMALISE_RE.sub("-", ascii_only)
@@ -31,7 +33,7 @@ def slugify(description: str) -> str:
     return truncated or _SLUG_FALLBACK
 
 
-def repair_dir_name(repair_date: date, description: str) -> str:
+def repair_dir_name(repair_date: date, description: str | None) -> str:
     return f"{repair_date.isoformat()}__{slugify(description)}"
 
 
