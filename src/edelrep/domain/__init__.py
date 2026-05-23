@@ -1,28 +1,32 @@
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
 from edelrep.domain.exceptions import (
     DomainError,
+    DuplicateRegistrationNumber,
     DuplicateRepair,
-    DuplicateVehicle,
+    DuplicateVin,
     ImageNotFound,
-    InvalidVehicleId,
+    InvalidRegistrationNumber,
+    InvalidVin,
     RepairNotFound,
     SidecarSchemaError,
+    VehicleIdentifierRequired,
     VehicleNotFound,
 )
-from edelrep.domain.value_objects import VehicleId
 
 __all__ = [
     "DomainError",
+    "DuplicateRegistrationNumber",
     "DuplicateRepair",
-    "DuplicateVehicle",
+    "DuplicateVin",
     "Image",
     "ImageNotFound",
     "ImageSource",
-    "InvalidVehicleId",
+    "InvalidRegistrationNumber",
+    "InvalidVin",
     "Repair",
     "RepairNotFound",
     "SidecarSchemaError",
     "Vehicle",
-    "VehicleId",
+    "VehicleIdentifierRequired",
     "VehicleNotFound",
 ]

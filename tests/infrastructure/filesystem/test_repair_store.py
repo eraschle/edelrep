@@ -11,7 +11,6 @@ from edelrep.domain.exceptions import (
     VehicleNotFound,
 )
 from edelrep.domain.ports import RepairRepository, StorageBackend
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem import FilesystemRepairRepository, FilesystemVehicleRepository
 from edelrep.infrastructure.storage import LocalFilesystemBackend
 
@@ -106,7 +105,7 @@ def test_list_for_vehicle_orders_newest_first(
 
 def test_list_for_vehicle_returns_empty_for_unknown(backend: StorageBackend) -> None:
     repo = FilesystemRepairRepository(backend)
-    assert list(repo.list_for_vehicle(VehicleId("99999"))) == []
+    assert list(repo.list_for_vehicle(ULID())) == []
 
 
 def test_list_for_vehicle_empty_when_no_repairs(backend: StorageBackend, sample_vehicle: Vehicle) -> None:
@@ -121,7 +120,7 @@ def test_list_for_vehicle_skips_non_repair_keys(
     _seed_vehicle(backend, sample_vehicle)
     repo = FilesystemRepairRepository(backend)
     repo.save(sample_repair)
-    backend.write_bytes("12345/stray.txt", b"noise")
+    backend.write_bytes(f"{sample_vehicle.id!s}/stray.txt", b"noise")
     repairs = list(repo.list_for_vehicle(sample_vehicle.id))
     assert len(repairs) == 1
 
@@ -138,8 +137,11 @@ def test_get_filters_non_repair_keys_during_scan(
     _seed_vehicle(backend, sample_vehicle)
     repo = FilesystemRepairRepository(backend)
     repo.save(sample_repair)
-    backend.write_bytes("12345/stray.txt", b"noise")
-    backend.write_bytes("12345/2026-04-15__bremsbelage-vorne/extra.txt", b"more noise")
+    backend.write_bytes(f"{sample_vehicle.id!s}/stray.txt", b"noise")
+    backend.write_bytes(
+        f"{sample_vehicle.id!s}/2026-04-15__bremsbelage-vorne/extra.txt",
+        b"more noise",
+    )
     # Should still find the repair, filtering out the noise.
     fetched = repo.get(sample_repair.id)
     assert fetched.id == sample_repair.id
@@ -177,7 +179,13 @@ def test_list_for_vehicle_same_date_orders_by_created_at_desc(tmp_path: Path) ->
     backend = LocalFilesystemBackend(tmp_path)
     vehicle_repo = FilesystemVehicleRepository(backend)
     repair_repo = FilesystemRepairRepository(backend)
-    vehicle = Vehicle(id=VehicleId("12345"), vin=None, description=None, created_at=datetime.now(UTC))
+    vehicle = Vehicle(
+        id=ULID(),
+        registration_number="12345",
+        vin=None,
+        description=None,
+        created_at=datetime.now(UTC),
+    )
     vehicle_repo.save(vehicle)
 
     earlier = Repair(

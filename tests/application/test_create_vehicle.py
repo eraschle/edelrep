@@ -1,7 +1,7 @@
 import pytest
 
 from edelrep.application.create_vehicle import CreateVehicleUseCase
-from edelrep.domain.exceptions import DuplicateVehicle, InvalidVehicleId
+from edelrep.domain.exceptions import DuplicateRegistrationNumber, InvalidRegistrationNumber
 from edelrep.infrastructure.search.in_memory import InMemorySearchIndex
 
 from .fakes import InMemoryVehicleRepo
@@ -12,7 +12,7 @@ def test_creates_vehicle_with_required_fields() -> None:
     idx = InMemorySearchIndex()
     use_case = CreateVehicleUseCase(repo, idx)
     vehicle = use_case.execute(registration_number="12345", vin="WDB", description="Kran")
-    assert vehicle.id.registration_number == "12345"
+    assert vehicle.registration_number == "12345"
     assert repo.exists(vehicle.id)
 
 
@@ -47,7 +47,7 @@ def test_invalid_registration_raises() -> None:
     repo = InMemoryVehicleRepo()
     idx = InMemorySearchIndex()
     use_case = CreateVehicleUseCase(repo, idx)
-    with pytest.raises(InvalidVehicleId):
+    with pytest.raises(InvalidRegistrationNumber):
         use_case.execute(registration_number="with spaces", vin=None, description=None)
 
 
@@ -56,5 +56,5 @@ def test_duplicate_raises() -> None:
     idx = InMemorySearchIndex()
     use_case = CreateVehicleUseCase(repo, idx)
     use_case.execute(registration_number="12345", vin=None, description=None)
-    with pytest.raises(DuplicateVehicle):
+    with pytest.raises(DuplicateRegistrationNumber):
         use_case.execute(registration_number="12345", vin=None, description=None)

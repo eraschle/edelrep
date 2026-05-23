@@ -2,6 +2,7 @@ import time
 from collections.abc import Iterator
 
 import pytest
+from ulid import ULID
 
 from edelrep.infrastructure.index.connection import open_index_database
 from edelrep.infrastructure.index.sqlite_search_index import SqliteSearchIndex
@@ -16,6 +17,7 @@ def populated_index() -> Iterator[SqliteSearchIndex]:
     try:
         rows = [
             (
+                str(ULID()),
                 f"VEH{i:05d}",
                 f"VIN-{i:08d}",
                 f"Description for vehicle number {i}",
@@ -25,7 +27,7 @@ def populated_index() -> Iterator[SqliteSearchIndex]:
         ]
         conn.execute("BEGIN")
         conn.executemany(
-            "INSERT INTO vehicles (registration_number, vin, description, created_at, fs_mtime) VALUES (?, ?, ?, ?, NULL)",
+            "INSERT INTO vehicles (id, registration_number, vin, description, created_at, fs_mtime) VALUES (?, ?, ?, ?, ?, NULL)",
             rows,
         )
         conn.execute("COMMIT")

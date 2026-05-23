@@ -5,7 +5,6 @@ from hypothesis import given, settings, strategies as st
 from ulid import ULID
 
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem import (
     FilesystemImageRepository,
     FilesystemRepairRepository,
@@ -36,20 +35,22 @@ def test_full_rebuild_matches_input_graph(
 
     expected_repair_count = vehicle_count * repairs_per_vehicle
     expected_image_count = expected_repair_count * images_per_repair
+    saved_regs: list[str] = []
     for vi in range(vehicle_count):
         reg = f"VEH{vi:04d}"
-        vrepo.save(
-            Vehicle(
-                id=VehicleId(reg),
-                vin=f"VIN-{reg}",
-                description=f"Vehicle {reg}",
-                created_at=datetime(2026, 1, 1, tzinfo=UTC),
-            )
+        saved_regs.append(reg)
+        vehicle = Vehicle(
+            id=ULID(),
+            registration_number=reg,
+            vin=f"VIN-{reg}",
+            description=f"Vehicle {reg}",
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
+        vrepo.save(vehicle)
         for ri in range(repairs_per_vehicle):
             repair = Repair(
                 id=ULID(),
-                vehicle_id=VehicleId(reg),
+                vehicle_id=vehicle.id,
                 date=date(2026, 1, ri + 1),
                 description=f"repair-{ri}",
                 created_at=datetime(2026, 1, ri + 1, tzinfo=UTC),
@@ -88,8 +89,7 @@ def test_full_rebuild_matches_input_graph(
         cur = conn.execute("SELECT COUNT(*) FROM images")
         assert cur.fetchone()[0] == expected_image_count
 
-        for vi in range(vehicle_count):
-            reg = f"VEH{vi:04d}"
+        for reg in saved_regs:
             cur = conn.execute(
                 "SELECT registration_number FROM vehicles_fts WHERE vehicles_fts MATCH ?",
                 (f"{reg}*",),

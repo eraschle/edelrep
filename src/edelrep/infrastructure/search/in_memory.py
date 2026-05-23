@@ -1,7 +1,8 @@
 from collections.abc import Iterable
 
+from ulid import ULID
+
 from edelrep.domain.entities import Vehicle
-from edelrep.domain.value_objects import VehicleId
 
 
 class InMemorySearchIndex:
@@ -15,7 +16,7 @@ class InMemorySearchIndex:
     """
 
     def __init__(self) -> None:
-        self._rows: dict[VehicleId, Vehicle] = {}
+        self._rows: dict[ULID, Vehicle] = {}
 
     def search_vehicles(self, query: str, limit: int = 20) -> Iterable[Vehicle]:
         if not query:
@@ -26,7 +27,7 @@ class InMemorySearchIndex:
             haystack = " ".join(
                 str(part)
                 for part in (
-                    vehicle.id.registration_number,
+                    vehicle.registration_number or "",
                     vehicle.vin or "",
                     vehicle.description or "",
                 )
@@ -43,7 +44,7 @@ class InMemorySearchIndex:
     def upsert_vehicle(self, vehicle: Vehicle) -> None:
         self._rows[vehicle.id] = vehicle
 
-    def remove_vehicle(self, vehicle_id: VehicleId) -> None:
+    def remove_vehicle(self, vehicle_id: ULID) -> None:
         self._rows.pop(vehicle_id, None)
 
     def clear(self) -> None:

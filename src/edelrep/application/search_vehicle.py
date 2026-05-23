@@ -23,7 +23,7 @@ class SearchVehicleUseCase:
         scored: list[tuple[float, int, Vehicle]] = []
         for idx, v in enumerate(candidates):
             best = max(
-                self._fuzzy.score(q, v.id.registration_number),
+                self._fuzzy.score(q, v.registration_number or ""),
                 self._fuzzy.score(q, v.vin or ""),
                 self._fuzzy.score(q, v.description or ""),
             )

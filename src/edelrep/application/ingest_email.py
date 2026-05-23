@@ -5,18 +5,13 @@ from ulid import ULID
 from edelrep.application.create_repair import CreateRepairUseCase
 from edelrep.application.upload_image import UploadImageUseCase
 from edelrep.domain.entities import ImageSource
-from edelrep.domain.exceptions import (
-    DuplicateRepair,
-    InvalidVehicleId,
-    VehicleNotFound,
-)
+from edelrep.domain.exceptions import DuplicateRepair
 from edelrep.domain.ports import (
     EmailInbox,
     EmailMessage,
     RepairRepository,
     VehicleRepository,
 )
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.email.inbox_store import InboxStore
 from edelrep.infrastructure.email.parser import EmailSubjectParser
 from edelrep.infrastructure.filesystem.layout import repair_dir_name
@@ -80,19 +75,13 @@ class IngestEmailUseCase:
         if reg is None:
             self._inbox_store.park(message)
             return "parked"
-        try:
-            vehicle_id = VehicleId(reg)
-        except InvalidVehicleId:
-            self._inbox_store.park(message)
-            return "parked"
-        try:
-            self._vehicle_repo.get(vehicle_id)
-        except VehicleNotFound:
+        vehicle = self._vehicle_repo.find_by_registration(reg)
+        if vehicle is None:
             self._inbox_store.park(message)
             return "parked"
         if not images:
             return "skipped"
-        repair_id = self._get_or_create_repair_id(message, vehicle_id)
+        repair_id = self._get_or_create_repair_id(message, vehicle.id)
         for att in images:
             self._upload_image.execute(
                 repair_id=repair_id,
@@ -102,7 +91,7 @@ class IngestEmailUseCase:
             )
         return "routed"
 
-    def _get_or_create_repair_id(self, message: EmailMessage, vehicle_id: VehicleId) -> ULID:
+    def _get_or_create_repair_id(self, message: EmailMessage, vehicle_id: ULID) -> ULID:
         repair_date = message.received_at.date()
         description = message.subject or "E-Mail"
         try:

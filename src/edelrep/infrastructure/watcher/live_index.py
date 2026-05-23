@@ -4,13 +4,14 @@ from typing import TYPE_CHECKING
 
 from watchdog.observers import Observer
 
+from ulid import ULID
+
 from edelrep.domain.exceptions import RepairNotFound, VehicleNotFound
 from edelrep.domain.ports import (
     ImageRepository,
     RepairRepository,
     VehicleRepository,
 )
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.layout import repair_dir_name
 from edelrep.infrastructure.index.projector import SqliteIndexProjector
 from edelrep.infrastructure.watcher.debouncer import Debouncer
@@ -90,9 +91,12 @@ class LiveIndex:
                 continue
 
     def _handle_vehicle(self, key: str) -> None:
-        reg_no = key.split("/", 1)[0]
-        vid = VehicleId(reg_no)
-        if not (self._storage_root / reg_no / "_vehicle.json").is_file():
+        vehicle_str = key.split("/", 1)[0]
+        try:
+            vid = ULID.from_str(vehicle_str)
+        except ValueError:
+            return
+        if not (self._storage_root / vehicle_str / "_vehicle.json").is_file():
             self._projector.remove_vehicle(vid)
             return
         try:
@@ -103,22 +107,24 @@ class LiveIndex:
         self._projector.upsert_vehicle(vehicle)
 
     def _handle_repair(self, key: str) -> None:
-        reg_no, dir_name, _ = key.split("/", 2)
-        sidecar_path = self._storage_root / reg_no / dir_name / "_repair.json"
+        vehicle_str, dir_name, _ = key.split("/", 2)
+        sidecar_path = self._storage_root / vehicle_str / dir_name / "_repair.json"
         if not sidecar_path.is_file():
             return
         try:
-            vehicle = self._vehicle_repo.get(VehicleId(reg_no))
-        except VehicleNotFound:
+            vid = ULID.from_str(vehicle_str)
+            vehicle = self._vehicle_repo.get(vid)
+        except (ValueError, VehicleNotFound):
             return
         for repair in self._repair_repo.list_for_vehicle(vehicle.id):
             self._projector.upsert_repair(repair)
 
     def _handle_image(self, key: str) -> None:
-        reg_no, dir_name, _ = key.split("/", 2)
+        vehicle_str, dir_name, _ = key.split("/", 2)
         try:
-            vehicle = self._vehicle_repo.get(VehicleId(reg_no))
-        except VehicleNotFound:
+            vid = ULID.from_str(vehicle_str)
+            vehicle = self._vehicle_repo.get(vid)
+        except (ValueError, VehicleNotFound):
             return
         for repair in self._repair_repo.list_for_vehicle(vehicle.id):
             if repair_dir_name(repair.date, repair.description) != dir_name:

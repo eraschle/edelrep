@@ -5,7 +5,6 @@ from pathlib import Path
 from ulid import ULID
 
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem import (
     FilesystemImageRepository,
     FilesystemRepairRepository,
@@ -18,7 +17,7 @@ from edelrep.infrastructure.watcher.live_index import LiveIndex
 
 
 def test_classify_image_sidecar_returns_image_sidecar() -> None:
-    key = "12345/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json"
+    key = "01J9TGZP6X2K0V3W7Y8Z4QFFFF/2026-05-10__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.json"
     assert classify(key) is EntityKind.IMAGE_SIDECAR
 
 
@@ -30,7 +29,13 @@ def test_live_index_keeps_image_indexed_on_sidecar_write(tmp_path: Path) -> None
     rrepo = FilesystemRepairRepository(backend)
     irepo = FilesystemImageRepository(backend)
 
-    vehicle = Vehicle(id=VehicleId("12345"), vin=None, description=None, created_at=datetime.now(UTC))
+    vehicle = Vehicle(
+        id=ULID(),
+        registration_number="12345",
+        vin=None,
+        description=None,
+        created_at=datetime.now(UTC),
+    )
     vrepo.save(vehicle)
     repair = Repair(
         id=ULID(),

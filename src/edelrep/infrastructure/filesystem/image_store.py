@@ -8,7 +8,6 @@ from ulid import ULID
 from edelrep.domain.entities import Image, ImageSource
 from edelrep.domain.exceptions import ImageNotFound, RepairNotFound
 from edelrep.domain.ports import StorageBackend
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.layout import (
     image_filename,
     image_key,
@@ -28,8 +27,8 @@ _IMAGE_FILE_RE = re.compile(r"^(\d{4})_([0-9A-HJKMNP-TV-Z]{26})\.([a-zA-Z0-9]+)$
 class FilesystemImageRepository:
     """ImageRepository implementation against any StorageBackend.
 
-    Per-image sidecar: ``<reg>/<repair-dir>/NNNN_<ulid>.json`` carries
-    optional fields like ``comment``. Absence = no comment.
+    Per-image sidecar: ``<vehicle_ulid>/<repair-dir>/NNNN_<ulid>.json``
+    carries optional fields like ``comment``. Absence = no comment.
     """
 
     def __init__(self, backend: StorageBackend) -> None:
@@ -56,13 +55,13 @@ class FilesystemImageRepository:
         repair_path = self._find_repair_path(image.repair_id)
         if repair_path is None:
             raise RepairNotFound(image.repair_id)
-        reg_no, dir_name = repair_path
-        prefix = f"{reg_no}/{dir_name}/"
+        vehicle_str, dir_name = repair_path
+        prefix = f"{vehicle_str}/{dir_name}/"
         existing = sum(1 for k in self._backend.list_prefix(prefix) if is_image_key(k))
         seq = existing + 1
         parts = image.filename.rsplit(".", 1)
         extension = (parts[1] if len(parts) == 2 and parts[1] else "bin").lower()
-        vehicle_id = VehicleId(reg_no)
+        vehicle_id = ULID.from_str(vehicle_str)
         name = image_filename(seq=seq, image_id=image.id, extension=extension)
         self._backend.write_bytes(image_key(vehicle_id, dir_name, name), raw_bytes)
         if thumbnail_bytes is not None:
@@ -78,8 +77,8 @@ class FilesystemImageRepository:
         repair_path = self._find_repair_path(repair_id)
         if repair_path is None:
             return
-        reg_no, dir_name = repair_path
-        prefix = f"{reg_no}/{dir_name}/"
+        vehicle_str, dir_name = repair_path
+        prefix = f"{vehicle_str}/{dir_name}/"
         keys = sorted(k for k in self._backend.list_prefix(prefix) if is_image_key(k))
         for key in keys:
             yield self._reconstruct(key, repair_id)
@@ -91,8 +90,8 @@ class FilesystemImageRepository:
             filename = key.rsplit("/", 1)[1]
             match = _IMAGE_FILE_RE.match(filename)
             if match and ULID.from_str(match.group(2)) == image_id:
-                reg_no, dir_name, name = key.split("/", 2)
-                vehicle_id = VehicleId(reg_no)
+                vehicle_str, dir_name, name = key.split("/", 2)
+                vehicle_id = ULID.from_str(vehicle_str)
                 sidecar = image_sidecar_key(vehicle_id, dir_name, name)
                 if comment is None:
                     if self._backend.exists(sidecar):
@@ -108,13 +107,13 @@ class FilesystemImageRepository:
                 continue
             data = read_backend_sidecar(self._backend, key)
             if str(data.get("id")) == str(repair_id):
-                reg_no, dir_name, _ = key.split("/", 2)
-                return reg_no, dir_name
+                vehicle_str, dir_name, _ = key.split("/", 2)
+                return vehicle_str, dir_name
         return None
 
     def _repair_id_for_image_key(self, key: str) -> ULID:
-        reg_no, dir_name, _ = key.split("/", 2)
-        sidecar = f"{reg_no}/{dir_name}/_repair.json"
+        vehicle_str, dir_name, _ = key.split("/", 2)
+        sidecar = f"{vehicle_str}/{dir_name}/_repair.json"
         data = read_backend_sidecar(self._backend, sidecar)
         return ULID.from_str(str(data["id"]))
 
@@ -129,8 +128,8 @@ class FilesystemImageRepository:
         thumb_key_value = thumb_candidate if self._backend.exists(thumb_candidate) else None
         mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
 
-        reg_no, dir_name, _ = key.split("/", 2)
-        sidecar = image_sidecar_key(VehicleId(reg_no), dir_name, filename)
+        vehicle_str, dir_name, _ = key.split("/", 2)
+        sidecar = image_sidecar_key(ULID.from_str(vehicle_str), dir_name, filename)
         comment: str | None = None
         if self._backend.exists(sidecar):
             data = read_backend_sidecar(self._backend, sidecar)

@@ -4,40 +4,64 @@ from ulid import ULID
 
 from edelrep.domain.entities import Image, Repair, Vehicle
 from edelrep.domain.exceptions import (
+    DuplicateRegistrationNumber,
     DuplicateRepair,
-    DuplicateVehicle,
+    DuplicateVin,
     ImageNotFound,
     RepairNotFound,
     VehicleNotFound,
 )
-from edelrep.domain.value_objects import VehicleId
 
 
 class InMemoryVehicleRepo:
     def __init__(self) -> None:
-        self._store: dict[VehicleId, Vehicle] = {}
+        self._store: dict[ULID, Vehicle] = {}
 
-    def get(self, vehicle_id: VehicleId) -> Vehicle:
+    def get(self, vehicle_id: ULID) -> Vehicle:
         try:
             return self._store[vehicle_id]
         except KeyError as exc:
-            raise VehicleNotFound(vehicle_id.registration_number) from exc
+            raise VehicleNotFound(str(vehicle_id)) from exc
 
     def save(self, vehicle: Vehicle) -> None:
-        if vehicle.id in self._store:
-            raise DuplicateVehicle(vehicle.id.registration_number)
+        self._guard_unique(vehicle)
         self._store[vehicle.id] = vehicle
 
     def update(self, vehicle: Vehicle) -> None:
         if vehicle.id not in self._store:
-            raise VehicleNotFound(vehicle.id.registration_number)
+            raise VehicleNotFound(str(vehicle.id))
+        self._guard_unique(vehicle)
         self._store[vehicle.id] = vehicle
 
     def list_all(self) -> Iterable[Vehicle]:
         return list(self._store.values())
 
-    def exists(self, vehicle_id: VehicleId) -> bool:
+    def exists(self, vehicle_id: ULID) -> bool:
         return vehicle_id in self._store
+
+    def find_by_registration(self, registration_number: str) -> Vehicle | None:
+        needle = registration_number.strip()
+        for v in self._store.values():
+            if v.registration_number == needle:
+                return v
+        return None
+
+    def find_by_vin(self, vin: str) -> Vehicle | None:
+        needle = vin.strip().upper()
+        for v in self._store.values():
+            if v.vin == needle:
+                return v
+        return None
+
+    def _guard_unique(self, vehicle: Vehicle) -> None:
+        if vehicle.registration_number is not None:
+            existing = self.find_by_registration(vehicle.registration_number)
+            if existing is not None and existing.id != vehicle.id:
+                raise DuplicateRegistrationNumber(vehicle.registration_number)
+        if vehicle.vin is not None:
+            existing = self.find_by_vin(vehicle.vin)
+            if existing is not None and existing.id != vehicle.id:
+                raise DuplicateVin(vehicle.vin)
 
 
 class InMemoryRepairRepo:
@@ -58,7 +82,7 @@ class InMemoryRepairRepo:
                 and existing.description == repair.description
             ):
                 raise DuplicateRepair(
-                    repair.vehicle_id.registration_number,
+                    str(repair.vehicle_id),
                     f"{repair.date.isoformat()}__{repair.description}",
                 )
         self._store[repair.id] = repair
@@ -68,7 +92,7 @@ class InMemoryRepairRepo:
             raise RepairNotFound(repair.id)
         self._store[repair.id] = repair
 
-    def list_for_vehicle(self, vehicle_id: VehicleId) -> Iterable[Repair]:
+    def list_for_vehicle(self, vehicle_id: ULID) -> Iterable[Repair]:
         return sorted(
             (r for r in self._store.values() if r.vehicle_id == vehicle_id),
             key=lambda r: (r.date, r.created_at),

@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 
 import pytest
+from ulid import ULID
 
 from edelrep.application.search_vehicle import SearchVehicleUseCase
 from edelrep.domain.entities import Vehicle
-from edelrep.domain.value_objects import VehicleId
 
 
 class _FakeIndex:
@@ -19,7 +19,7 @@ class _FakeIndex:
 
     def upsert_vehicle(self, vehicle: Vehicle) -> None: ...
 
-    def remove_vehicle(self, vehicle_id: VehicleId) -> None: ...
+    def remove_vehicle(self, vehicle_id: ULID) -> None: ...
 
     def clear(self) -> None: ...
 
@@ -36,7 +36,8 @@ class _NeverMatcher:
 
 def _vehicle(reg: str, vin: str | None = None, desc: str | None = None) -> Vehicle:
     return Vehicle(
-        id=VehicleId(reg),
+        id=ULID(),
+        registration_number=reg,
         vin=vin,
         description=desc,
         created_at=datetime.now(UTC),
@@ -59,7 +60,7 @@ def test_query_with_high_score_returns_results() -> None:
     vs = [_vehicle("AAA"), _vehicle("BBB")]
     uc = SearchVehicleUseCase(_FakeIndex(vs), _AlwaysMaxMatcher())
     result = uc.execute("ZZZ")
-    assert {v.id.registration_number for v in result} == {"AAA", "BBB"}
+    assert {v.registration_number for v in result} == {"AAA", "BBB"}
 
 
 def test_query_below_threshold_returns_empty() -> None:

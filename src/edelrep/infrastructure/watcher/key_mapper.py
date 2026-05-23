@@ -10,7 +10,9 @@ from edelrep.infrastructure.filesystem.layout import (
 )
 
 _TEMP_SUFFIX_RE = re.compile(r"\.tmp\.[0-9a-f]+$")
-_THUMB_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/\d{4}-\d{2}-\d{2}__[a-z0-9-]+/_thumbs/.+$")
+_THUMB_KEY_RE = re.compile(
+    r"^[0-9A-HJKMNP-TV-Z]{26}/\d{4}-\d{2}-\d{2}__[a-z0-9-]+/_thumbs/.+$"
+)
 
 
 class EntityKind(Enum):

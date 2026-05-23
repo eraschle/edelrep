@@ -5,35 +5,58 @@ class DomainError(Exception):
     """Base class for all domain-level errors."""
 
 
-class InvalidVehicleId(DomainError):
-    """Raised when a registration number does not match the allowed pattern."""
+class InvalidRegistrationNumber(DomainError):
+    """Raised when a Stammnummer does not match the allowed pattern."""
 
     def __init__(self, value: str) -> None:
-        super().__init__(f"Invalid vehicle registration number: {value!r}")
+        super().__init__(f"Ungültige Stammnummer: {value!r}")
         self.value = value
+
+
+class InvalidVin(DomainError):
+    """Raised when a Rahmennummer does not match the allowed pattern."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(f"Ungültige Rahmennummer: {value!r}")
+        self.value = value
+
+
+class VehicleIdentifierRequired(DomainError):
+    """Raised when a vehicle is created without either Stammnummer or Rahmennummer."""
+
+    def __init__(self) -> None:
+        super().__init__("Stammnummer oder Rahmennummer muss angegeben werden.")
 
 
 class VehicleNotFound(DomainError):
     """Raised when a vehicle lookup misses."""
 
-    def __init__(self, registration_number: str) -> None:
-        super().__init__(f"Vehicle not found: {registration_number!r}")
-        self.registration_number = registration_number
+    def __init__(self, identifier: str) -> None:
+        super().__init__(f"Fahrzeug nicht gefunden: {identifier!r}")
+        self.identifier = identifier
 
 
-class DuplicateVehicle(DomainError):
-    """Raised when creating a vehicle that already exists."""
+class DuplicateRegistrationNumber(DomainError):
+    """Raised when saving a vehicle whose Stammnummer is already in use."""
 
-    def __init__(self, registration_number: str) -> None:
-        super().__init__(f"Vehicle already exists: {registration_number!r}")
-        self.registration_number = registration_number
+    def __init__(self, value: str) -> None:
+        super().__init__(f"Stammnummer ist bereits vergeben: {value!r}")
+        self.value = value
+
+
+class DuplicateVin(DomainError):
+    """Raised when saving a vehicle whose Rahmennummer is already in use."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(f"Rahmennummer ist bereits vergeben: {value!r}")
+        self.value = value
 
 
 class RepairNotFound(DomainError):
     """Raised when a repair lookup misses."""
 
     def __init__(self, repair_id: ULID) -> None:
-        super().__init__(f"Repair not found: {repair_id!s}")
+        super().__init__(f"Reparatur nicht gefunden: {repair_id!s}")
         self.repair_id = repair_id
 
 
@@ -41,7 +64,7 @@ class ImageNotFound(DomainError):
     """Raised when an image lookup misses."""
 
     def __init__(self, image_id: ULID) -> None:
-        super().__init__(f"Image not found: {image_id!s}")
+        super().__init__(f"Bild nicht gefunden: {image_id!s}")
         self.image_id = image_id
 
 
@@ -59,7 +82,7 @@ class DuplicateRepair(DomainError):
     """Raised when creating a repair whose folder already exists."""
 
     def __init__(self, vehicle_id: str, folder_name: str) -> None:
-        super().__init__(f"Repair folder already exists for vehicle {vehicle_id!r}: {folder_name!r}")
+        super().__init__(f"Reparatur existiert bereits für Fahrzeug {vehicle_id!r}: {folder_name!r}")
         self.vehicle_id = vehicle_id
         self.folder_name = folder_name
 

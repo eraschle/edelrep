@@ -6,7 +6,6 @@ import pytest
 from ulid import ULID
 
 from edelrep.domain.entities import ImageSource
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.json_codec import (
     DomainJSONEncoder,
     parse_aware_datetime,
@@ -39,8 +38,11 @@ def test_encoder_serialises_ulid() -> None:
 
 
 def test_encoder_serialises_vehicle_id() -> None:
-    out = json.dumps({"v": VehicleId("12345")}, cls=DomainJSONEncoder)
-    assert '"12345"' in out
+    # Vehicles are now identified by ULID; the encoder must serialise ULIDs as
+    # their canonical 26-char Crockford base32 string.
+    uid = ULID.from_str("01J9TGZP6X2K0V3W7Y8Z4QFFFF")
+    out = json.dumps({"v": uid}, cls=DomainJSONEncoder)
+    assert '"01J9TGZP6X2K0V3W7Y8Z4QFFFF"' in out
 
 
 def test_encoder_serialises_image_source() -> None:

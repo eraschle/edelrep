@@ -1,8 +1,9 @@
 from datetime import UTC, datetime
 
+from ulid import ULID
+
 from edelrep.domain.entities import Vehicle
 from edelrep.domain.ports import SearchIndex, VehicleRepository
-from edelrep.domain.value_objects import VehicleId
 
 
 class CreateVehicleUseCase:
@@ -19,12 +20,13 @@ class CreateVehicleUseCase:
     def execute(
         self,
         *,
-        registration_number: str,
+        registration_number: str | None,
         vin: str | None,
         description: str | None,
     ) -> Vehicle:
         vehicle = Vehicle(
-            id=VehicleId(registration_number),
+            id=ULID(),
+            registration_number=registration_number or None,
             vin=vin or None,
             description=description or None,
             created_at=datetime.now(UTC),

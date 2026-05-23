@@ -7,7 +7,6 @@ from ulid import ULID
 
 from edelrep.application.reindex import ReindexUseCase
 from edelrep.domain.entities import Repair, Vehicle
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.index.connection import open_index_database
 from edelrep.infrastructure.index.projector import (
     ReindexStats,
@@ -30,7 +29,8 @@ def test_reindex_returns_stats(
 ) -> None:
     connection, lock = conn
     vehicle = Vehicle(
-        id=VehicleId("12345"),
+        id=ULID(),
+        registration_number="12345",
         vin="X",
         description="x",
         created_at=datetime(2026, 1, 1, tzinfo=UTC),

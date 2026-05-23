@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 from ulid import ULID
 
 from edelrep.domain.entities import Repair, Vehicle
-from edelrep.domain.value_objects import VehicleId
 from edelrep.presentation.container import Container
 
 ALLOWED_BLUE = {"bg-blue-50", "text-blue-700", "ring-blue-200"}
@@ -31,7 +30,8 @@ def _find_slate(text: str) -> set[str]:
 def _seed_full(container: Container) -> None:
     """Create one vehicle + one repair so the detail page is non-trivial."""
     vehicle = Vehicle(
-        id=VehicleId("12345"),
+        id=ULID(),
+        registration_number="12345",
         vin="WDB1",
         description="Kran",
         created_at=datetime.now(UTC),

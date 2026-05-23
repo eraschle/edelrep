@@ -59,8 +59,8 @@ def test_repair_appears_on_vehicle_detail(client: TestClient, container: Contain
     assert "2026-05-03" in r.text
 
 
-def test_create_repair_with_invalid_vehicle_id_returns_404(client: TestClient) -> None:
-    """A POST to repairs for an invalid VehicleId (contains $) should return 404."""
+def test_create_repair_with_invalid_vehicle_key_returns_404(client: TestClient) -> None:
+    """A POST to repairs for an unknown vehicle key (contains $) should return 404."""
     r = client.post(
         "/vehicles/with$dollar/repairs",
         data={"description": "brakes", "date": "2026-05-03"},

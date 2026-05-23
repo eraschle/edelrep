@@ -7,7 +7,6 @@ from ulid import ULID
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
 from edelrep.domain.exceptions import ImageNotFound, RepairNotFound
 from edelrep.domain.ports import ImageRepository, StorageBackend
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem import (
     FilesystemImageRepository,
     FilesystemRepairRepository,
@@ -21,7 +20,8 @@ from .conftest import make_image  # type: ignore[import-not-found]
 
 def _seed_vehicle(vehicle_repo: FilesystemVehicleRepository) -> Vehicle:
     vehicle = Vehicle(
-        id=VehicleId("12345"),
+        id=ULID(),
+        registration_number="12345",
         vin=None,
         description=None,
         created_at=datetime.now(UTC),
@@ -30,7 +30,7 @@ def _seed_vehicle(vehicle_repo: FilesystemVehicleRepository) -> Vehicle:
     return vehicle
 
 
-def _seed_repair(repair_repo: FilesystemRepairRepository, vehicle_id: VehicleId) -> Repair:
+def _seed_repair(repair_repo: FilesystemRepairRepository, vehicle_id: ULID) -> Repair:
     repair = Repair(
         id=ULID(),
         vehicle_id=vehicle_id,
@@ -57,7 +57,7 @@ def test_save_writes_image_bytes_and_thumbnail(
     repo = FilesystemImageRepository(backend)
     img = make_image(sample_repair.id)
     repo.save(img, raw_bytes=sample_image_bytes, thumbnail_bytes=sample_image_bytes)
-    keys = sorted(backend.list_prefix("12345/2026-04-15__bremsbelage-vorne/"))
+    keys = sorted(backend.list_prefix(f"{sample_vehicle.id!s}/2026-04-15__bremsbelage-vorne/"))
     image_keys = [k for k in keys if k.endswith(".jpg") and "_thumbs/" not in k]
     thumb_keys = [k for k in keys if "/_thumbs/" in k]
     assert len(image_keys) == 1
@@ -88,7 +88,11 @@ def test_save_no_thumbnail(
     repo = FilesystemImageRepository(backend)
     img = make_image(sample_repair.id)
     repo.save(img, raw_bytes=sample_image_bytes)
-    thumbs = [k for k in backend.list_prefix("12345/2026-04-15__bremsbelage-vorne/") if "/_thumbs/" in k]
+    thumbs = [
+        k
+        for k in backend.list_prefix(f"{sample_vehicle.id!s}/2026-04-15__bremsbelage-vorne/")
+        if "/_thumbs/" in k
+    ]
     assert thumbs == []
 
 
@@ -115,7 +119,11 @@ def test_save_falls_back_to_bin_extension_for_extensionless_filename(
         captured_at=template.captured_at,
     )
     repo.save(img_no_ext, raw_bytes=sample_image_bytes)
-    keys = [k for k in backend.list_prefix("12345/2026-04-15__bremsbelage-vorne/") if k.endswith(".bin")]
+    keys = [
+        k
+        for k in backend.list_prefix(f"{sample_vehicle.id!s}/2026-04-15__bremsbelage-vorne/")
+        if k.endswith(".bin")
+    ]
     assert len(keys) == 1
 
 
@@ -192,7 +200,10 @@ def test_save_skips_when_repair_dir_has_no_sidecar(
     FilesystemVehicleRepository(backend).save(sample_vehicle)
     # Seed a key that LOOKS like a repair folder shape but has no _repair.json.
     # _find_repair_path scans _repair.json sidecars only; this should miss → RepairNotFound.
-    backend.write_bytes("12345/2026-04-15__no-sidecar/something.txt", b"")
+    backend.write_bytes(
+        f"{sample_vehicle.id!s}/2026-04-15__no-sidecar/something.txt",
+        b"",
+    )
     repo = FilesystemImageRepository(backend)
     img = make_image(sample_repair.id)
     with pytest.raises(RepairNotFound):
@@ -228,7 +239,10 @@ def test_save_persists_comment_in_sidecar(tmp_path: Path) -> None:
     image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
 
     sidecar_path = (
-        tmp_path / "12345" / repair_dir_name(repair.date, repair.description) / f"0001_{img.id!s}.json"
+        tmp_path
+        / str(vehicle.id)
+        / repair_dir_name(repair.date, repair.description)
+        / f"0001_{img.id!s}.json"
     )
     assert sidecar_path.is_file()
 
@@ -281,7 +295,7 @@ def test_save_without_comment_writes_no_sidecar(tmp_path: Path) -> None:
     )
     image_repo.save(img, raw_bytes=b"\x00\x00\x00\x00")
 
-    expected_dir = tmp_path / "12345" / repair_dir_name(repair.date, repair.description)
+    expected_dir = tmp_path / str(vehicle.id) / repair_dir_name(repair.date, repair.description)
     json_files = [p for p in expected_dir.iterdir() if p.suffix == ".json" and p.name != "_repair.json"]
     assert json_files == []
 
@@ -336,7 +350,10 @@ def test_update_comment_with_none_removes_sidecar(tmp_path: Path) -> None:
     image_repo.update_comment(img.id, None)
     assert image_repo.get(img.id).comment is None
     sidecar_path = (
-        tmp_path / "12345" / repair_dir_name(repair.date, repair.description) / f"0001_{img.id!s}.json"
+        tmp_path
+        / str(vehicle.id)
+        / repair_dir_name(repair.date, repair.description)
+        / f"0001_{img.id!s}.json"
     )
     assert not sidecar_path.exists()
 
@@ -417,6 +434,6 @@ def test_save_sequence_skips_when_prior_image_has_comment(tmp_path: Path) -> Non
     )
     image_repo.save(img2, raw_bytes=b"\x00\x00\x00\x02")
 
-    dir_path = tmp_path / "12345" / repair_dir_name(repair.date, repair.description)
+    dir_path = tmp_path / str(vehicle.id) / repair_dir_name(repair.date, repair.description)
     jpg_files = sorted(p.name for p in dir_path.iterdir() if p.suffix == ".jpg")
     assert jpg_files == [f"0001_{img1.id!s}.jpg", f"0002_{img2.id!s}.jpg"]

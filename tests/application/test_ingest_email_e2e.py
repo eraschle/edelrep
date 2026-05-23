@@ -8,7 +8,6 @@ from PIL import Image as PILImage
 from edelrep.application.create_vehicle import CreateVehicleUseCase
 from edelrep.application.ingest_email import IngestEmailUseCase
 from edelrep.domain.ports import EmailAttachment, EmailMessage
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.email.inbox_store import InboxStore
 from edelrep.infrastructure.email.parser import EmailSubjectParser
 from edelrep.presentation.container import build_container
@@ -76,7 +75,9 @@ def test_dod_email_with_attachment_appears_on_vehicle(tmp_path: Path) -> None:
         assert "<test@example.com>" in inbox.processed
 
         # Vehicle now has a repair.
-        repairs = list(container.list_repairs.execute(VehicleId("12345")))
+        vehicle = container.vehicle_repo.find_by_registration("12345")
+        assert vehicle is not None
+        repairs = list(container.list_repairs.execute(vehicle.id))
         assert len(repairs) == 1
         assert "Bremsen vorne" in repairs[0].description
 

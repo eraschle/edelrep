@@ -5,8 +5,6 @@ from typing import Any
 
 from ulid import ULID
 
-from edelrep.domain.value_objects import VehicleId
-
 
 class DomainJSONEncoder(json.JSONEncoder):
     """JSON encoder that knows how to serialise edelrep's domain primitives."""
@@ -20,8 +18,6 @@ class DomainJSONEncoder(json.JSONEncoder):
             return o.isoformat()
         if isinstance(o, ULID):
             return str(o)
-        if isinstance(o, VehicleId):
-            return o.registration_number
         if isinstance(o, Enum):
             return o.value
         return super().default(o)

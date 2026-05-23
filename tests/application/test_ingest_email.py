@@ -11,7 +11,6 @@ from edelrep.application.create_vehicle import CreateVehicleUseCase
 from edelrep.application.ingest_email import IngestEmailUseCase, IngestStats
 from edelrep.application.upload_image import UploadImageUseCase
 from edelrep.domain.ports import EmailAttachment, EmailMessage
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.email.inbox_store import InboxStore
 from edelrep.infrastructure.email.parser import EmailSubjectParser
 from edelrep.infrastructure.exif.pillow_processor import PillowImageProcessor
@@ -114,7 +113,9 @@ def test_routes_message_to_existing_vehicle(tmp_path: Path) -> None:
     assert stats.parked == 0
     assert stats.skipped == 0
     assert inbox.processed == ["<m1@x>"]
-    repairs = list(rrepo.list_for_vehicle(VehicleId("12345")))
+    vehicle = vrepo.find_by_registration("12345")
+    assert vehicle is not None
+    repairs = list(rrepo.list_for_vehicle(vehicle.id))
     assert len(repairs) == 1
     images = list(irepo.list_for_repair(repairs[0].id))
     assert len(images) == 1
@@ -208,7 +209,9 @@ def test_filters_oversized_attachments(tmp_path: Path) -> None:
     # No images survived filter; reg matched & vehicle exists, but nothing to upload.
     assert stats.skipped == 1
     assert stats.routed == 0
-    repairs = list(rrepo.list_for_vehicle(VehicleId("12345")))
+    vehicle = vrepo.find_by_registration("12345")
+    assert vehicle is not None
+    repairs = list(rrepo.list_for_vehicle(vehicle.id))
     # Implementation choice: if there are no images, don't create a repair either.
     assert len(repairs) == 0
 
@@ -268,7 +271,9 @@ def test_handles_duplicate_repair(tmp_path: Path) -> None:
     stats = use_case.execute()
     # Both should be routed; second falls back to existing repair.
     assert stats.routed == 2
-    repairs = list(rrepo.list_for_vehicle(VehicleId("12345")))
+    vehicle = vrepo.find_by_registration("12345")
+    assert vehicle is not None
+    repairs = list(rrepo.list_for_vehicle(vehicle.id))
     assert len(repairs) == 1  # only one repair, two images on it
     images = list(irepo.list_for_repair(repairs[0].id))
     assert len(images) == 2
@@ -290,11 +295,11 @@ def test_returns_zero_stats_when_no_messages(tmp_path: Path) -> None:
 
 
 def test_parks_message_when_parser_returns_invalid_registration(tmp_path: Path) -> None:
-    """Parser returning a string that fails VehicleId validation → park the message."""
+    """Parser returning a string with no matching vehicle → park the message."""
     _backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
     msg = _msg_with_jpeg(subject="irrelevant")
 
-    # Mock parser to return a string with a space, which is invalid for VehicleId.
+    # Mock parser to return a string with a space; lookup will miss → park.
     mock_parser = MagicMock(spec=EmailSubjectParser)
     mock_parser.extract_registration_number.return_value = "has space"
 
@@ -318,10 +323,12 @@ def test_duplicate_repair_fallback_skips_non_matching_repairs(tmp_path: Path) ->
     _backend, vrepo, rrepo, _irepo, cr, ui, store = _build(tmp_path)
     create_vehicle = CreateVehicleUseCase(vrepo, InMemorySearchIndex())
     create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    vehicle = vrepo.find_by_registration("12345")
+    assert vehicle is not None
 
     # Create a decoy repair with a newer date so it sorts first in list_for_vehicle.
     cr.execute(
-        vehicle_id=VehicleId("12345"),
+        vehicle_id=vehicle.id,
         repair_date=datetime(2026, 5, 10, tzinfo=UTC).date(),
         description="Ölwechsel",
     )
@@ -344,5 +351,5 @@ def test_duplicate_repair_fallback_skips_non_matching_repairs(tmp_path: Path) ->
     )
     stats = use_case.execute()
     assert stats.routed == 2
-    repairs = list(rrepo.list_for_vehicle(VehicleId("12345")))
+    repairs = list(rrepo.list_for_vehicle(vehicle.id))
     assert len(repairs) == 2  # decoy + target

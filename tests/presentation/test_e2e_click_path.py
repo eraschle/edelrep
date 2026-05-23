@@ -7,7 +7,6 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image as PILImage
 
-from edelrep.domain.value_objects import VehicleId
 from edelrep.presentation.app_factory import create_app
 from edelrep.presentation.container import Container, build_container
 
@@ -66,7 +65,9 @@ def test_full_click_path(live_client: TestClient, live_container: Container) -> 
     assert r.status_code == 303
 
     # Get the repair_id by listing repairs (URLs don't include the ULID).
-    repairs = list(live_container.list_repairs.execute(VehicleId("CRANE001")))
+    vehicle = live_container.vehicle_repo.find_by_registration("CRANE001")
+    assert vehicle is not None
+    repairs = list(live_container.list_repairs.execute(vehicle.id))
     assert len(repairs) == 1
     repair_id = str(repairs[0].id)
 

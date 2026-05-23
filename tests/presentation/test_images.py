@@ -6,7 +6,6 @@ from PIL import Image as PILImage
 from ulid import ULID
 
 from edelrep.domain.entities import Image, ImageSource
-from edelrep.domain.value_objects import VehicleId
 from edelrep.presentation.container import Container
 
 
@@ -23,9 +22,11 @@ def _jpeg_bytes() -> bytes:
 
 
 def _seed_repair(container: Container) -> str:
-    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    vehicle = container.create_vehicle.execute(
+        registration_number="12345", vin=None, description=None
+    )
     repair = container.create_repair.execute(
-        vehicle_id=VehicleId("12345"),
+        vehicle_id=vehicle.id,
         repair_date=date(2026, 5, 3),
         description="brakes",
     )
@@ -34,9 +35,11 @@ def _seed_repair(container: Container) -> str:
 
 def _seed_vehicle_and_repair(container: Container, registration_number: str) -> None:
     """Create a vehicle and one repair for the given registration number."""
-    container.create_vehicle.execute(registration_number=registration_number, vin=None, description=None)
+    vehicle = container.create_vehicle.execute(
+        registration_number=registration_number, vin=None, description=None
+    )
     container.create_repair.execute(
-        vehicle_id=VehicleId(registration_number),
+        vehicle_id=vehicle.id,
         repair_date=date(2026, 5, 3),
         description="brakes",
     )
@@ -44,7 +47,9 @@ def _seed_vehicle_and_repair(container: Container, registration_number: str) -> 
 
 def _first_repair_id(container: Container, registration_number: str) -> str:
     """Return the string ULID of the first repair for the given vehicle."""
-    repairs = list(container.repair_repo.list_for_vehicle(VehicleId(registration_number)))
+    vehicle = container.vehicle_repo.find_by_registration(registration_number)
+    assert vehicle is not None
+    repairs = list(container.repair_repo.list_for_vehicle(vehicle.id))
     return str(repairs[0].id)
 
 
@@ -223,9 +228,11 @@ def test_upload_duplicate_image_returns_422_with_german_message(
 def test_thumbnail_returns_404_when_image_has_no_thumbnail(client: TestClient, container: Container) -> None:
     """If an image was saved without thumbnail_bytes, the thumbnail endpoint 404s."""
     # Seed via the use case path, then directly save a no-thumbnail image via repo.
-    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    vehicle = container.create_vehicle.execute(
+        registration_number="12345", vin=None, description=None
+    )
     repair = container.create_repair.execute(
-        vehicle_id=VehicleId("12345"),
+        vehicle_id=vehicle.id,
         repair_date=date(2026, 5, 3),
         description="brakes",
     )

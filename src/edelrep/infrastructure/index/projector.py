@@ -12,7 +12,6 @@ from edelrep.domain.ports import (
     RepairRepository,
     VehicleRepository,
 )
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem.layout import repair_dir_name
 
 
@@ -91,11 +90,11 @@ class SqliteIndexProjector:
     def upsert_image(self, image: Image) -> None:
         self._insert_image(image)
 
-    def remove_vehicle(self, vehicle_id: VehicleId) -> None:
+    def remove_vehicle(self, vehicle_id: ULID) -> None:
         with self._lock:
             self._conn.execute(
-                "DELETE FROM vehicles WHERE registration_number = ?",
-                (vehicle_id.registration_number,),
+                "DELETE FROM vehicles WHERE id = ?",
+                (str(vehicle_id),),
             )
 
     def remove_repair(self, repair_id: ULID) -> None:
@@ -110,15 +109,17 @@ class SqliteIndexProjector:
         with self._lock:
             self._conn.execute(
                 """
-                INSERT INTO vehicles (registration_number, vin, description, created_at, fs_mtime)
-                VALUES (?, ?, ?, ?, NULL)
-                ON CONFLICT(registration_number) DO UPDATE SET
+                INSERT INTO vehicles (id, registration_number, vin, description, created_at, fs_mtime)
+                VALUES (?, ?, ?, ?, ?, NULL)
+                ON CONFLICT(id) DO UPDATE SET
+                    registration_number = excluded.registration_number,
                     vin = excluded.vin,
                     description = excluded.description,
                     created_at = excluded.created_at
                 """,
                 (
-                    vehicle.id.registration_number,
+                    str(vehicle.id),
+                    vehicle.registration_number,
                     vehicle.vin,
                     vehicle.description,
                     vehicle.created_at.isoformat(),
@@ -130,17 +131,17 @@ class SqliteIndexProjector:
         with self._lock:
             self._conn.execute(
                 """
-                INSERT INTO repairs (id, registration_number, date, description, folder_name, fs_mtime)
+                INSERT INTO repairs (id, vehicle_id, date, description, folder_name, fs_mtime)
                 VALUES (?, ?, ?, ?, ?, NULL)
                 ON CONFLICT(id) DO UPDATE SET
-                    registration_number = excluded.registration_number,
+                    vehicle_id = excluded.vehicle_id,
                     date = excluded.date,
                     description = excluded.description,
                     folder_name = excluded.folder_name
                 """,
                 (
                     str(repair.id),
-                    repair.vehicle_id.registration_number,
+                    str(repair.vehicle_id),
                     repair.date.isoformat(),
                     repair.description,
                     folder,

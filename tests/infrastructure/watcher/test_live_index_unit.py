@@ -6,13 +6,19 @@ import pytest
 from ulid import ULID
 
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.watcher.live_index import LiveIndex
 from tests.application.fakes import (
     InMemoryImageRepo,
     InMemoryRepairRepo,
     InMemoryVehicleRepo,
 )
+
+# Fixed valid ULIDs (Crockford base32, 26 chars) used as on-disk path segments
+# so layout regexes and ULID.from_str parsing succeed.
+VEHICLE_ID = ULID.from_str("01J9TGZP6X2K0V3W7Y8Z4QFFFF")
+VEHICLE_ID_STR = str(VEHICLE_ID)
+OTHER_VEHICLE_ID = ULID.from_str("01HXKBP3MGT7VWE5R4QABCDEF1")
+OTHER_VEHICLE_ID_STR = str(OTHER_VEHICLE_ID)
 
 
 def _mock_projector() -> MagicMock:
@@ -41,57 +47,59 @@ def _proj(live: LiveIndex) -> MagicMock:
 
 def test_handle_vehicle_upserts_when_sidecar_exists(live: LiveIndex, tmp_path: Path) -> None:
     storage_root = tmp_path / "store"
-    sidecar = storage_root / "12345" / "_vehicle.json"
+    sidecar = storage_root / VEHICLE_ID_STR / "_vehicle.json"
     sidecar.parent.mkdir()
     sidecar.write_text('{"schema_version": 1}', encoding="utf-8")
     vehicle = Vehicle(
-        id=VehicleId("12345"),
+        id=VEHICLE_ID,
+        registration_number="12345",
         vin="W",
         description="x",
         created_at=datetime(2026, 5, 3, tzinfo=UTC),
     )
     live._vehicle_repo.save(vehicle)  # type: ignore[union-attr]
-    live._apply_batch({"12345/_vehicle.json"})
+    live._apply_batch({f"{VEHICLE_ID_STR}/_vehicle.json"})
     _proj(live).upsert_vehicle.assert_called_once_with(vehicle)
 
 
 def test_handle_vehicle_removes_when_sidecar_missing(live: LiveIndex) -> None:
-    live._apply_batch({"12345/_vehicle.json"})
-    _proj(live).remove_vehicle.assert_called_once_with(VehicleId("12345"))
+    live._apply_batch({f"{VEHICLE_ID_STR}/_vehicle.json"})
+    _proj(live).remove_vehicle.assert_called_once_with(VEHICLE_ID)
 
 
 def test_handle_vehicle_removes_when_repo_raises_not_found(live: LiveIndex, tmp_path: Path) -> None:
     storage_root = tmp_path / "store"
-    sidecar = storage_root / "12345" / "_vehicle.json"
+    sidecar = storage_root / VEHICLE_ID_STR / "_vehicle.json"
     sidecar.parent.mkdir()
     sidecar.write_text('{"schema_version": 1}', encoding="utf-8")
     # vehicle_repo is empty — get() will raise VehicleNotFound.
-    live._apply_batch({"12345/_vehicle.json"})
-    _proj(live).remove_vehicle.assert_called_once_with(VehicleId("12345"))
+    live._apply_batch({f"{VEHICLE_ID_STR}/_vehicle.json"})
+    _proj(live).remove_vehicle.assert_called_once_with(VEHICLE_ID)
 
 
 def test_handle_repair_skips_when_sidecar_missing(live: LiveIndex) -> None:
-    live._apply_batch({"12345/2026-04-15__brakes/_repair.json"})
+    live._apply_batch({f"{VEHICLE_ID_STR}/2026-04-15__brakes/_repair.json"})
     _proj(live).upsert_repair.assert_not_called()
 
 
 def test_handle_repair_skips_when_vehicle_unknown(live: LiveIndex, tmp_path: Path) -> None:
     storage_root = tmp_path / "store"
-    sidecar = storage_root / "12345" / "2026-04-15__brakes" / "_repair.json"
+    sidecar = storage_root / VEHICLE_ID_STR / "2026-04-15__brakes" / "_repair.json"
     sidecar.parent.mkdir(parents=True)
     sidecar.write_text('{"schema_version": 1}', encoding="utf-8")
     # vehicle_repo is empty — get() raises VehicleNotFound; nothing is upserted.
-    live._apply_batch({"12345/2026-04-15__brakes/_repair.json"})
+    live._apply_batch({f"{VEHICLE_ID_STR}/2026-04-15__brakes/_repair.json"})
     _proj(live).upsert_repair.assert_not_called()
 
 
 def test_handle_repair_upserts_all_repairs_for_vehicle(live: LiveIndex, tmp_path: Path) -> None:
     storage_root = tmp_path / "store"
-    sidecar = storage_root / "12345" / "2026-04-15__brakes" / "_repair.json"
+    sidecar = storage_root / VEHICLE_ID_STR / "2026-04-15__brakes" / "_repair.json"
     sidecar.parent.mkdir(parents=True)
     sidecar.write_text('{"schema_version": 1}', encoding="utf-8")
     vehicle = Vehicle(
-        id=VehicleId("12345"),
+        id=VEHICLE_ID,
+        registration_number="12345",
         vin="W",
         description="x",
         created_at=datetime(2026, 5, 3, tzinfo=UTC),
@@ -99,24 +107,27 @@ def test_handle_repair_upserts_all_repairs_for_vehicle(live: LiveIndex, tmp_path
     live._vehicle_repo.save(vehicle)  # type: ignore[union-attr]
     repair = Repair(
         id=ULID(),
-        vehicle_id=VehicleId("12345"),
+        vehicle_id=VEHICLE_ID,
         date=date(2026, 4, 15),
         description="brakes",
         created_at=datetime(2026, 5, 3, tzinfo=UTC),
     )
     live._repair_repo.save(repair)  # type: ignore[union-attr]
-    live._apply_batch({"12345/2026-04-15__brakes/_repair.json"})
+    live._apply_batch({f"{VEHICLE_ID_STR}/2026-04-15__brakes/_repair.json"})
     assert _proj(live).upsert_repair.call_count == 1
 
 
 def test_handle_image_skips_when_vehicle_unknown(live: LiveIndex) -> None:
-    live._apply_batch({"12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"})
+    live._apply_batch(
+        {f"{VEHICLE_ID_STR}/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"}
+    )
     _proj(live).upsert_image.assert_not_called()
 
 
 def test_handle_image_upserts_all_images_for_repair(live: LiveIndex, tmp_path: Path) -> None:
     vehicle = Vehicle(
-        id=VehicleId("12345"),
+        id=VEHICLE_ID,
+        registration_number="12345",
         vin="W",
         description="x",
         created_at=datetime(2026, 5, 3, tzinfo=UTC),
@@ -124,7 +135,7 @@ def test_handle_image_upserts_all_images_for_repair(live: LiveIndex, tmp_path: P
     live._vehicle_repo.save(vehicle)  # type: ignore[union-attr]
     repair = Repair(
         id=ULID(),
-        vehicle_id=VehicleId("12345"),
+        vehicle_id=VEHICLE_ID,
         date=date(2026, 4, 15),
         description="brakes",
         created_at=datetime(2026, 5, 3, tzinfo=UTC),
@@ -145,14 +156,21 @@ def test_handle_image_upserts_all_images_for_repair(live: LiveIndex, tmp_path: P
     live._image_repo.save(  # type: ignore[union-attr]
         image, raw_bytes=b"\xff\xd8\xff\xd9"
     )
-    live._apply_batch({"12345/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"})
+    live._apply_batch(
+        {f"{VEHICLE_ID_STR}/2026-04-15__brakes/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"}
+    )
     _proj(live).upsert_image.assert_called()
 
 
 def test_apply_batch_swallows_errors_per_key(live: LiveIndex) -> None:
     # Force the projector to raise on upsert; the batch must continue.
     _proj(live).remove_vehicle.side_effect = RuntimeError("simulated")
-    live._apply_batch({"12345/_vehicle.json", "67890/_vehicle.json"})
+    live._apply_batch(
+        {
+            f"{VEHICLE_ID_STR}/_vehicle.json",
+            f"{OTHER_VEHICLE_ID_STR}/_vehicle.json",
+        }
+    )
     # Both calls attempted despite the exception.
     assert _proj(live).remove_vehicle.call_count == 2
 

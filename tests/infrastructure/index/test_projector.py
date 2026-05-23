@@ -8,7 +8,6 @@ import pytest
 from ulid import ULID
 
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
-from edelrep.domain.value_objects import VehicleId
 from edelrep.infrastructure.filesystem import (
     FilesystemImageRepository,
     FilesystemRepairRepository,
@@ -37,14 +36,15 @@ def storage_repos(
 
 def _vehicle(reg: str = "12345") -> Vehicle:
     return Vehicle(
-        id=VehicleId(reg),
+        id=ULID(),
+        registration_number=reg,
         vin=f"VIN-{reg}",
         description=f"Vehicle {reg}",
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
 
-def _repair(vehicle_id: VehicleId, *, day: int = 1) -> Repair:
+def _repair(vehicle_id: ULID, *, day: int = 1) -> Repair:
     return Repair(
         id=ULID(),
         vehicle_id=vehicle_id,
@@ -88,7 +88,10 @@ def test_full_rebuild_indexes_repairs(conn: sqlite3.Connection, lock: threading.
     projector = SqliteIndexProjector(conn, lock)
     stats = projector.full_rebuild(vrepo, rrepo, irepo)
     assert stats.repairs_indexed == 2
-    cur = conn.execute("SELECT COUNT(*) FROM repairs WHERE registration_number = '12345'")
+    cur = conn.execute(
+        "SELECT COUNT(*) FROM repairs WHERE vehicle_id = ?",
+        (str(v.id),),
+    )
     assert cur.fetchone()[0] == 2
 
 
@@ -96,11 +99,12 @@ def test_full_rebuild_drops_existing_data(
     conn: sqlite3.Connection, lock: threading.RLock, storage_repos
 ) -> None:
     vrepo, rrepo, irepo, storage_root = storage_repos
-    vrepo.save(_vehicle("12345"))
+    v = _vehicle("12345")
+    vrepo.save(v)
     projector = SqliteIndexProjector(conn, lock)
     projector.full_rebuild(vrepo, rrepo, irepo)
-    # Now remove the vehicle file and rebuild — the index row should disappear.
-    shutil.rmtree(storage_root / "12345")
+    # Now remove the vehicle directory and rebuild — the index row should disappear.
+    shutil.rmtree(storage_root / str(v.id))
     stats = projector.full_rebuild(vrepo, rrepo, irepo)
     assert stats.vehicles_indexed == 0
     cur = conn.execute("SELECT COUNT(*) FROM vehicles")
@@ -129,8 +133,9 @@ def test_upsert_vehicle_individual(conn: sqlite3.Connection, lock: threading.RLo
 
 def test_remove_vehicle_individual(conn: sqlite3.Connection, lock: threading.RLock) -> None:
     projector = SqliteIndexProjector(conn, lock)
-    projector.upsert_vehicle(_vehicle("12345"))
-    projector.remove_vehicle(VehicleId("12345"))
+    v = _vehicle("12345")
+    projector.upsert_vehicle(v)
+    projector.remove_vehicle(v.id)
     cur = conn.execute("SELECT COUNT(*) FROM vehicles")
     assert cur.fetchone()[0] == 0
 
@@ -188,7 +193,7 @@ def test_remove_repair_individual(conn: sqlite3.Connection, lock: threading.RLoc
     repair_id = ULID()
     repair = Repair(
         id=repair_id,
-        vehicle_id=VehicleId("12345"),
+        vehicle_id=ULID(),
         date=date(2026, 5, 1),
         description="x",
         created_at=datetime(2026, 5, 1, tzinfo=UTC),
