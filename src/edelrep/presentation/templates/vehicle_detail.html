@@ -15,10 +15,14 @@
   {% if vehicle.description %}
     <p class="text-sm text-stone-700 mt-1">{{ vehicle_labels["description"] }}: {{ vehicle.description }}</p>
   {% endif %}
-  <div class="mt-5">
+  <div class="mt-5 flex items-center gap-3">
     <a href="/vehicles/{{ vehicle_key }}/repairs/new"
        class="inline-flex items-center gap-2 bg-[#b59775] hover:bg-[#ac8a64] text-white px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
       {{ icon("plus", "w-4 h-4") }} Reparatur
+    </a>
+    <a href="/vehicles/{{ vehicle_key }}/edit"
+       class="inline-flex items-center gap-2 bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
+      Bearbeiten
     </a>
   </div>
 </div>

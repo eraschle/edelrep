@@ -9,6 +9,7 @@ from edelrep.application.ingest_email import IngestEmailUseCase
 from edelrep.application.list_repairs import ListRepairsUseCase
 from edelrep.application.search_vehicle import SearchVehicleUseCase
 from edelrep.application.update_image_comment import UpdateImageCommentUseCase
+from edelrep.application.update_vehicle import UpdateVehicleUseCase
 from edelrep.application.upload_image import UploadImageUseCase
 from edelrep.domain.ports import (
     ImageRepository,
@@ -50,6 +51,7 @@ class Container:
     search_index: SearchIndex
     projector: SqliteIndexProjector
     create_vehicle: CreateVehicleUseCase
+    update_vehicle: UpdateVehicleUseCase
     create_repair: CreateRepairUseCase
     upload_image: UploadImageUseCase
     list_repairs: ListRepairsUseCase
@@ -96,6 +98,7 @@ def build_container(
         search_index=search_index,
         projector=projector,
         create_vehicle=CreateVehicleUseCase(vehicle_repo, search_index),
+        update_vehicle=UpdateVehicleUseCase(vehicle_repo, search_index),
         create_repair=CreateRepairUseCase(vehicle_repo, repair_repo),
         upload_image=UploadImageUseCase(repair_repo, image_repo, processor, backend),
         list_repairs=ListRepairsUseCase(vehicle_repo, repair_repo),

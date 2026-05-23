@@ -41,6 +41,91 @@ def test_vehicle_detail_renders(client: TestClient, container: Container) -> Non
     assert "Rahmennummer" in r.text
 
 
+def test_edit_form_renders_prefilled(client: TestClient, container: Container) -> None:
+    container.create_vehicle.execute(
+        registration_number="12345", vin="WDB123", description="Kran 4-achsig"
+    )
+    r = client.get("/vehicles/12345/edit")
+    assert r.status_code == 200
+    assert "Fahrzeug bearbeiten" in r.text
+    assert 'value="12345"' in r.text
+    assert 'value="WDB123"' in r.text
+    assert 'value="Kran 4-achsig"' in r.text
+
+
+def test_edit_form_404_for_unknown_vehicle(client: TestClient) -> None:
+    r = client.get("/vehicles/UNKNOWN/edit")
+    assert r.status_code == 404
+
+
+def test_edit_post_updates_and_redirects(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    r = client.post(
+        "/vehicles/12345/edit",
+        data={"registration_number": "67890", "vin": "NEWVIN", "description": "Kran"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/vehicles/67890"
+    # Confirm the change landed in the index.
+    found = container.vehicle_repo.find_by_registration("67890")
+    assert found is not None
+    assert found.vin == "NEWVIN"
+    assert found.description == "Kran"
+
+
+def test_edit_post_can_be_addressed_by_old_registration_until_redirect(
+    client: TestClient, container: Container
+) -> None:
+    """After the redirect, the new key is canonical — but the original
+    /vehicles/<old>/edit URL must still resolve as long as the old value is
+    submitted unchanged (and through resolve_vehicle for the GET form)."""
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    # GET still works through the old key.
+    r = client.get("/vehicles/12345/edit")
+    assert r.status_code == 200
+
+
+def test_edit_post_clearing_both_identifiers_returns_400(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    r = client.post(
+        "/vehicles/12345/edit",
+        data={"registration_number": "", "vin": "", "description": "noch da"},
+    )
+    assert r.status_code == 400
+    assert "Stammnummer oder Rahmennummer" in r.text
+
+
+def test_edit_post_duplicate_registration_returns_400(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="11111", vin=None, description=None)
+    container.create_vehicle.execute(registration_number="22222", vin=None, description=None)
+    r = client.post(
+        "/vehicles/22222/edit",
+        data={"registration_number": "11111", "vin": "", "description": ""},
+    )
+    assert r.status_code == 400
+    assert "bereits vergeben" in r.text
+
+
+def test_edit_post_duplicate_vin_returns_400(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="11111", vin="VIN1", description=None)
+    container.create_vehicle.execute(registration_number="22222", vin="VIN2", description=None)
+    r = client.post(
+        "/vehicles/22222/edit",
+        data={"registration_number": "22222", "vin": "VIN1", "description": ""},
+    )
+    assert r.status_code == 400
+    assert "bereits vergeben" in r.text
+
+
 def test_vehicle_detail_modal_initially_hidden_without_flex_conflict(
     client: TestClient, container: Container
 ) -> None:
