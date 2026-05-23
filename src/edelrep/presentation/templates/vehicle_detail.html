@@ -24,7 +24,11 @@
 {% for r in repairs %}
   <li class="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
     <div class="flex justify-between items-baseline gap-4">
+      {% if r.description %}
       <strong class="text-base">{{ r.description }}</strong>
+      {% else %}
+      <strong class="text-base text-stone-400 italic font-normal">Ohne Beschreibung</strong>
+      {% endif %}
       <span class="text-sm text-stone-500 font-mono whitespace-nowrap">{{ r.date.isoformat() }}</span>
     </div>
     {% set repair_images = images_by_repair.get(r.id|string, []) %}

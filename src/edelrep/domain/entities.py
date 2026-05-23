@@ -29,7 +29,7 @@ class Repair:
     id: ULID
     vehicle_id: VehicleId
     date: date
-    description: str
+    description: str | None
     created_at: datetime
 
     def __post_init__(self) -> None:

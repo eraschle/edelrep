@@ -38,7 +38,7 @@ def create_repair(
     request: Request,
     container: ContainerDep,
     registration_number: str,
-    description: str = Form(...),
+    description: str = Form(""),
     date: str = Form(...),
 ) -> HTMLResponse | RedirectResponse | JSONResponse:
     wants_json = "application/json" in request.headers.get("accept", "")
@@ -67,7 +67,7 @@ def create_repair(
         repair = container.create_repair.execute(
             vehicle_id=vehicle_id,
             repair_date=parsed_date,
-            description=description,
+            description=description.strip() or None,
         )
     except VehicleNotFound as exc:
         if wants_json:
