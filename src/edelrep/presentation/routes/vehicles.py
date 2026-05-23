@@ -11,7 +11,7 @@ from edelrep.domain.exceptions import (
 )
 from edelrep.presentation.dependencies import ContainerDep
 from edelrep.presentation.labels import REPAIR_FIELDS, VEHICLE_FIELDS
-from edelrep.presentation.vehicle_lookup import resolve_vehicle, vehicle_url
+from edelrep.presentation.vehicle_lookup import resolve_vehicle, vehicle_url, vehicle_url_key
 
 router = APIRouter()
 
@@ -85,6 +85,71 @@ def vehicle_detail(
     )
 
 
+@router.get("/vehicles/{vehicle_key}/edit", response_class=HTMLResponse)
+def edit_vehicle_form(
+    request: Request,
+    container: ContainerDep,
+    vehicle_key: str,
+) -> HTMLResponse:
+    try:
+        vehicle = resolve_vehicle(container.vehicle_repo, vehicle_key)
+    except VehicleNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "edit_vehicle.html",
+        {
+            "vehicle": vehicle,
+            "vehicle_key": vehicle_url_key(vehicle),
+            "errors": {},
+            "form": {
+                "registration_number": vehicle.registration_number or "",
+                "vin": vehicle.vin or "",
+                "description": vehicle.description or "",
+            },
+        },
+    )
+
+
+@router.post("/vehicles/{vehicle_key}/edit", response_model=None)
+def edit_vehicle(
+    request: Request,
+    container: ContainerDep,
+    vehicle_key: str,
+    registration_number: str = Form(""),
+    vin: str = Form(""),
+    description: str = Form(""),
+) -> HTMLResponse | RedirectResponse:
+    try:
+        vehicle = resolve_vehicle(container.vehicle_repo, vehicle_key)
+    except VehicleNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    form_values = {
+        "registration_number": registration_number,
+        "vin": vin,
+        "description": description,
+    }
+    try:
+        updated = container.update_vehicle.execute(
+            vehicle_id=vehicle.id,
+            registration_number=registration_number or None,
+            vin=vin or None,
+            description=description or None,
+        )
+    except VehicleIdentifierRequired as exc:
+        return _edit_form_error(request, vehicle, form_values, {"identifier": str(exc)})
+    except InvalidRegistrationNumber as exc:
+        return _edit_form_error(request, vehicle, form_values, {"registration_number": str(exc)})
+    except InvalidVin as exc:
+        return _edit_form_error(request, vehicle, form_values, {"vin": str(exc)})
+    except DuplicateRegistrationNumber as exc:
+        return _edit_form_error(request, vehicle, form_values, {"registration_number": str(exc)})
+    except DuplicateVin as exc:
+        return _edit_form_error(request, vehicle, form_values, {"vin": str(exc)})
+    return RedirectResponse(url=vehicle_url(updated), status_code=303)
+
+
 def _form_error(
     request: Request,
     form_values: dict[str, str],
@@ -95,5 +160,25 @@ def _form_error(
         request,
         "new_vehicle.html",
         {"errors": errors, "form": form_values},
+        status_code=400,
+    )
+
+
+def _edit_form_error(
+    request: Request,
+    vehicle,
+    form_values: dict[str, str],
+    errors: dict[str, str],
+) -> HTMLResponse:
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "edit_vehicle.html",
+        {
+            "vehicle": vehicle,
+            "vehicle_key": vehicle_url_key(vehicle),
+            "errors": errors,
+            "form": form_values,
+        },
         status_code=400,
     )
