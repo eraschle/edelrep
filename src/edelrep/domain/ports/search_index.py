@@ -35,6 +35,10 @@ class SearchIndex(Protocol):
         """Drop the index row. No-op if absent."""
         ...
 
+    def remove_image(self, image_id: ULID) -> None:
+        """Drop the index row for a single image. No-op if absent."""
+        ...
+
     def clear(self) -> None:
         """Drop all rows. Used before a full reindex."""
         ...

@@ -38,3 +38,10 @@ class ImageRepository(Protocol):
         :class:`ImageNotFound` when the image does not exist.
         """
         ...
+
+    def delete(self, image_id: ULID) -> None:
+        """Hard-delete the image, its thumbnail and the per-image sidecar.
+
+        Raises :class:`ImageNotFound` if the image does not exist.
+        """
+        ...

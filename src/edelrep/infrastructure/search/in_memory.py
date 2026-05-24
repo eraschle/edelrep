@@ -47,5 +47,9 @@ class InMemorySearchIndex:
     def remove_vehicle(self, vehicle_id: ULID) -> None:
         self._rows.pop(vehicle_id, None)
 
+    def remove_image(self, image_id: ULID) -> None:
+        # InMemorySearchIndex only tracks vehicles, so image removal is a no-op.
+        return
+
     def clear(self) -> None:
         self._rows.clear()

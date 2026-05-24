@@ -4,6 +4,7 @@ from pathlib import Path
 
 from edelrep.application.create_repair import CreateRepairUseCase
 from edelrep.application.create_vehicle import CreateVehicleUseCase
+from edelrep.application.delete_image import DeleteImageUseCase
 from edelrep.application.delete_vehicle import (
     CleanupDeletedVehiclesUseCase,
     SoftDeleteVehicleUseCase,
@@ -65,6 +66,7 @@ class Container:
     get_image: GetImageUseCase
     search_vehicle: SearchVehicleUseCase
     update_image_comment: UpdateImageCommentUseCase
+    delete_image: DeleteImageUseCase
     inbox_reader: InboxReader
     live_index: LiveIndex | None = None
     email_poller: EmailPoller | None = None
@@ -116,6 +118,7 @@ def build_container(
         get_image=GetImageUseCase(image_repo, backend),
         search_vehicle=SearchVehicleUseCase(search_index, fuzzy=fuzzy_matcher),
         update_image_comment=UpdateImageCommentUseCase(image_repo),
+        delete_image=DeleteImageUseCase(image_repo, search_index),
         inbox_reader=inbox_reader,
     )
 

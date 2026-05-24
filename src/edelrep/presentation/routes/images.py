@@ -95,6 +95,22 @@ def upload_image(
     )
 
 
+@router.delete("/images/{image_id}")
+def delete_image(
+    container: ContainerDep,
+    image_id: str,
+) -> JSONResponse:
+    try:
+        iid = ULID.from_str(image_id)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=404)
+    try:
+        container.delete_image.execute(iid)
+    except ImageNotFound as exc:
+        return JSONResponse({"error": str(exc)}, status_code=404)
+    return JSONResponse({"image_id": str(iid), "deleted": True})
+
+
 @router.patch("/images/{image_id}/comment")
 def patch_image_comment(
     container: ContainerDep,

@@ -83,6 +83,25 @@ class FilesystemImageRepository:
         for key in keys:
             yield self._reconstruct(key, repair_id)
 
+    def delete(self, image_id: ULID) -> None:
+        for key in self._backend.list_prefix(""):
+            if not is_image_key(key):
+                continue
+            filename = key.rsplit("/", 1)[1]
+            match = _IMAGE_FILE_RE.match(filename)
+            if match and ULID.from_str(match.group(2)) == image_id:
+                vehicle_str, dir_name, name = key.split("/", 2)
+                vehicle_id = ULID.from_str(vehicle_str)
+                thumb = thumbnail_key(vehicle_id, dir_name, name)
+                sidecar = image_sidecar_key(vehicle_id, dir_name, name)
+                self._backend.delete(key)
+                if self._backend.exists(thumb):
+                    self._backend.delete(thumb)
+                if self._backend.exists(sidecar):
+                    self._backend.delete(sidecar)
+                return
+        raise ImageNotFound(image_id)
+
     def update_comment(self, image_id: ULID, comment: str | None) -> None:
         for key in self._backend.list_prefix(""):
             if not is_image_key(key):
