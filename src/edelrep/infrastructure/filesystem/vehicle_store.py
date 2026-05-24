@@ -24,20 +24,24 @@ class FilesystemVehicleRepository:
     """VehicleRepository implementation against any StorageBackend.
 
     Layout: ``<vehicle_ulid>/_vehicle.json`` sidecars under the storage root.
-    The sidecar carries the optional Stammnummer (``registration_number``)
-    and optional Rahmennummer (``vin``); at least one of them must be set
-    by domain invariant.
+    The sidecar carries the optional Stammnummer (``registration_number``),
+    optional Rahmennummer (``vin``) and an optional ``deleted_at``
+    timestamp. Soft-deleted vehicles are filtered from default reads unless
+    ``include_deleted=True``.
     """
 
     def __init__(self, backend: StorageBackend) -> None:
         self._backend = backend
 
-    def get(self, vehicle_id: ULID) -> Vehicle:
+    def get(self, vehicle_id: ULID, *, include_deleted: bool = False) -> Vehicle:
         key = vehicle_sidecar_key(vehicle_id)
         if not self._backend.exists(key):
             raise VehicleNotFound(str(vehicle_id))
         data = read_backend_sidecar(self._backend, key)
-        return _deserialise(vehicle_id, data)
+        vehicle = _deserialise(vehicle_id, data)
+        if vehicle.is_deleted and not include_deleted:
+            raise VehicleNotFound(str(vehicle_id))
+        return vehicle
 
     def save(self, vehicle: Vehicle) -> None:
         self._guard_unique_identifiers(vehicle)
@@ -51,10 +55,21 @@ class FilesystemVehicleRepository:
         self._guard_unique_identifiers(vehicle)
         write_backend_sidecar(self._backend, key, _serialise(vehicle))
 
-    def exists(self, vehicle_id: ULID) -> bool:
-        return self._backend.exists(vehicle_sidecar_key(vehicle_id))
+    def hard_delete(self, vehicle_id: ULID) -> None:
+        prefix = f"{vehicle_id!s}/"
+        for key in list(self._backend.list_prefix(prefix)):
+            self._backend.delete(key)
 
-    def list_all(self) -> Iterable[Vehicle]:
+    def exists(self, vehicle_id: ULID, *, include_deleted: bool = False) -> bool:
+        key = vehicle_sidecar_key(vehicle_id)
+        if not self._backend.exists(key):
+            return False
+        if include_deleted:
+            return True
+        data = read_backend_sidecar(self._backend, key)
+        return data.get("deleted_at") is None
+
+    def list_all(self, *, include_deleted: bool = False) -> Iterable[Vehicle]:
         for key in sorted(self._backend.list_prefix("")):
             if not is_vehicle_sidecar_key(key):
                 continue
@@ -63,7 +78,10 @@ class FilesystemVehicleRepository:
             except ValueError:
                 continue
             data = read_backend_sidecar(self._backend, key)
-            yield _deserialise(vid, data)
+            vehicle = _deserialise(vid, data)
+            if vehicle.is_deleted and not include_deleted:
+                continue
+            yield vehicle
 
     def find_by_registration(self, registration_number: str) -> Vehicle | None:
         needle = registration_number.strip()
@@ -91,13 +109,16 @@ class FilesystemVehicleRepository:
 
 
 def _serialise(vehicle: Vehicle) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "id": str(vehicle.id),
         "registration_number": vehicle.registration_number,
         "vin": vehicle.vin,
         "description": vehicle.description,
         "created_at": vehicle.created_at,
     }
+    if vehicle.deleted_at is not None:
+        payload["deleted_at"] = vehicle.deleted_at
+    return payload
 
 
 def _deserialise(vehicle_id: ULID, data: dict[str, object]) -> Vehicle:
@@ -107,10 +128,15 @@ def _deserialise(vehicle_id: ULID, data: dict[str, object]) -> Vehicle:
     registration_number = data.get("registration_number")
     vin = data.get("vin")
     description = data.get("description")
+    deleted_at_raw = data.get("deleted_at")
+    deleted_at = (
+        parse_aware_datetime(str(deleted_at_raw)) if deleted_at_raw is not None else None
+    )
     return Vehicle(
         id=vehicle_id,
         registration_number=str(registration_number) if registration_number is not None else None,
         vin=str(vin) if vin is not None else None,
         description=str(description) if description is not None else None,
         created_at=parse_aware_datetime(created_at_raw),
+        deleted_at=deleted_at,
     )

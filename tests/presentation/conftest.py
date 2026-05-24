@@ -12,7 +12,9 @@ from edelrep.presentation.container import Container, build_container
 def container(tmp_path: Path) -> Iterator[Container]:
     storage = tmp_path / "store"
     index = tmp_path / "index.db"
-    c = build_container(storage, index, with_live_index=False)
+    c = build_container(
+        storage, index, with_live_index=False, with_cleanup_scheduler=False
+    )
     yield c
     c.projector.connection.close()
 

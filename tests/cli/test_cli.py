@@ -140,6 +140,71 @@ def test_serve_subparser_accepts_email_config(capsys: pytest.CaptureFixture[str]
     assert "--email-config" in captured.out
 
 
+def test_cleanup_help_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as info:
+        main(["cleanup", "--help"])
+    assert info.value.code == 0
+
+
+def test_cleanup_on_empty_storage_reports_zero(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    storage = tmp_path / "store"
+    storage.mkdir()
+    index_path = tmp_path / "index.db"
+    code = main(
+        [
+            "cleanup",
+            "--storage-root",
+            str(storage),
+            "--index-path",
+            str(index_path),
+        ]
+    )
+    assert code == 0
+    captured = capsys.readouterr()
+    assert "vehicles_purged=0" in captured.out
+    assert "older_than_days=30" in captured.out
+
+
+def test_cleanup_purges_aged_soft_deletes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    storage = tmp_path / "store"
+    storage.mkdir()
+    index_path = tmp_path / "index.db"
+
+    backend = LocalFilesystemBackend(storage)
+    repo = FilesystemVehicleRepository(backend)
+    aged_id = ULID()
+    repo.save(
+        Vehicle(
+            id=aged_id,
+            registration_number="AGED",
+            vin=None,
+            description=None,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            deleted_at=datetime(2026, 1, 2, tzinfo=UTC),
+        )
+    )
+
+    code = main(
+        [
+            "cleanup",
+            "--storage-root",
+            str(storage),
+            "--index-path",
+            str(index_path),
+            "--older-than-days",
+            "0",
+        ]
+    )
+    assert code == 0
+    captured = capsys.readouterr()
+    assert "vehicles_purged=1" in captured.out
+    assert list(repo.list_all(include_deleted=True)) == []
+
+
 def test_migrate_storage_help_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as info:
         main(["migrate-storage", "--help"])

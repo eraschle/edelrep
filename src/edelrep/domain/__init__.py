@@ -1,5 +1,6 @@
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
 from edelrep.domain.exceptions import (
+    DeletionConfirmationMismatch,
     DomainError,
     DuplicateRegistrationNumber,
     DuplicateRepair,
@@ -14,6 +15,7 @@ from edelrep.domain.exceptions import (
 )
 
 __all__ = [
+    "DeletionConfirmationMismatch",
     "DomainError",
     "DuplicateRegistrationNumber",
     "DuplicateRepair",

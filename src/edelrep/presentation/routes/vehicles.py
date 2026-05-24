@@ -2,6 +2,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from edelrep.domain.exceptions import (
+    DeletionConfirmationMismatch,
     DuplicateRegistrationNumber,
     DuplicateVin,
     InvalidRegistrationNumber,
@@ -148,6 +149,59 @@ def edit_vehicle(
     except DuplicateVin as exc:
         return _edit_form_error(request, vehicle, form_values, {"vin": str(exc)})
     return RedirectResponse(url=vehicle_url(updated), status_code=303)
+
+
+@router.get("/vehicles/{vehicle_key}/delete", response_class=HTMLResponse)
+def delete_vehicle_form(
+    request: Request,
+    container: ContainerDep,
+    vehicle_key: str,
+) -> HTMLResponse:
+    try:
+        vehicle = resolve_vehicle(container.vehicle_repo, vehicle_key)
+    except VehicleNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "delete_vehicle.html",
+        {
+            "vehicle": vehicle,
+            "vehicle_key": vehicle_url_key(vehicle),
+            "errors": {},
+        },
+    )
+
+
+@router.post("/vehicles/{vehicle_key}/delete", response_model=None)
+def delete_vehicle(
+    request: Request,
+    container: ContainerDep,
+    vehicle_key: str,
+    confirmation: str = Form(""),
+) -> HTMLResponse | RedirectResponse:
+    try:
+        vehicle = resolve_vehicle(container.vehicle_repo, vehicle_key)
+    except VehicleNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        container.soft_delete_vehicle.execute(
+            vehicle_id=vehicle.id,
+            confirmation=confirmation,
+        )
+    except DeletionConfirmationMismatch as exc:
+        templates = request.app.state.templates
+        return templates.TemplateResponse(
+            request,
+            "delete_vehicle.html",
+            {
+                "vehicle": vehicle,
+                "vehicle_key": vehicle_url_key(vehicle),
+                "errors": {"confirmation": str(exc)},
+            },
+            status_code=400,
+        )
+    return RedirectResponse(url="/search", status_code=303)
 
 
 def _form_error(
