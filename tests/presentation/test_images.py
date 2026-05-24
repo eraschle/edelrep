@@ -317,3 +317,77 @@ def test_patch_image_comment_too_long_returns_422(client: TestClient, container:
 def test_patch_unknown_image_comment_returns_404(client: TestClient) -> None:
     r = client.patch(f"/images/{ULID()!s}/comment", json={"comment": "x"})
     assert r.status_code == 404
+
+
+def test_delete_image_removes_file_and_index_row(
+    client: TestClient, container: Container
+) -> None:
+    repair_id = _seed_repair(container)
+    upload = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("photo.jpg", _make_jpeg(), "image/jpeg")},
+        headers={"Accept": "application/json"},
+    )
+    assert upload.status_code == 201
+    image_id = upload.json()["image_id"]
+
+    r = client.delete(f"/images/{image_id}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["deleted"] is True
+    assert body["image_id"] == image_id
+
+    # File-side cleanup: subsequent /raw and /thumbnail must 404
+    assert client.get(f"/images/{image_id}/raw").status_code == 404
+    assert client.get(f"/images/{image_id}/thumbnail").status_code == 404
+
+    # Index-side cleanup: SQLite no longer has the row
+    with container.projector.lock:
+        row = container.projector.connection.execute(
+            "SELECT id FROM images WHERE id = ?", (image_id,)
+        ).fetchone()
+    assert row is None
+
+
+def test_delete_image_keeps_sibling_intact(
+    client: TestClient, container: Container
+) -> None:
+    repair_id = _seed_repair(container)
+    # Upload two distinct images so a sibling can survive deletion.
+    keep = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("a.jpg", _make_jpeg(), "image/jpeg")},
+        headers={"Accept": "application/json"},
+    ).json()["image_id"]
+    other_jpeg = (
+        PILImage.new("RGB", (50, 50), color=(255, 0, 0)).tobytes()
+        if False
+        else _make_other_jpeg()
+    )
+    victim = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/images",
+        files={"image": ("b.jpg", other_jpeg, "image/jpeg")},
+        headers={"Accept": "application/json"},
+    ).json()["image_id"]
+
+    r = client.delete(f"/images/{victim}")
+    assert r.status_code == 200
+    assert client.get(f"/images/{keep}/raw").status_code == 200
+    assert client.get(f"/images/{victim}/raw").status_code == 404
+
+
+def _make_other_jpeg() -> bytes:
+    img = PILImage.new("RGB", (200, 100), color=(255, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=80)
+    return buf.getvalue()
+
+
+def test_delete_unknown_image_returns_404(client: TestClient) -> None:
+    r = client.delete(f"/images/{ULID()!s}")
+    assert r.status_code == 404
+
+
+def test_delete_image_invalid_id_returns_404(client: TestClient) -> None:
+    r = client.delete("/images/not-a-ulid")
+    assert r.status_code == 404

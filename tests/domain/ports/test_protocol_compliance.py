@@ -88,6 +88,9 @@ class _FakeImageRepo:
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         return [i for i in self._store.values() if i.repair_id == repair_id]
 
+    def delete(self, image_id: ULID) -> None:
+        self._store.pop(image_id, None)
+
     def update_comment(self, image_id: ULID, comment: str | None) -> None:
         if image_id not in self._store:
             raise ImageNotFound(image_id)
@@ -145,6 +148,9 @@ class _FakeSearchIndex:
 
     def remove_vehicle(self, vehicle_id: ULID) -> None:
         self._rows.pop(vehicle_id, None)
+
+    def remove_image(self, image_id: ULID) -> None:
+        return
 
     def clear(self) -> None:
         self._rows.clear()

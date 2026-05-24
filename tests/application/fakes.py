@@ -154,6 +154,11 @@ class InMemoryImageRepo:
     def list_for_repair(self, repair_id: ULID) -> Iterable[Image]:
         return [entry[0] for entry in self._store.values() if entry[0].repair_id == repair_id]
 
+    def delete(self, image_id: ULID) -> None:
+        if image_id not in self._store:
+            raise ImageNotFound(image_id)
+        self._store.pop(image_id)
+
     def update_comment(self, image_id: ULID, comment: str | None) -> None:
         if image_id not in self._store:
             raise ImageNotFound(image_id)

@@ -91,12 +91,18 @@
       <label class="block text-sm font-medium" for="image-modal-comment">Kommentar</label>
       <textarea id="image-modal-comment" data-modal-comment maxlength="1000" rows="3"
                 class="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm"></textarea>
-      <div class="flex justify-end items-center gap-3">
-        <span data-modal-status class="text-xs text-stone-500"></span>
-        <button type="submit"
-                class="bg-[#b59775] hover:bg-[#ac8a64] text-white px-4 py-2 rounded-lg text-sm font-medium">
-          Speichern
+      <div class="flex justify-between items-center gap-3">
+        <button type="button" data-modal-delete
+                class="text-red-600 hover:text-red-800 text-sm font-medium">
+          Bild löschen
         </button>
+        <div class="flex items-center gap-3">
+          <span data-modal-status class="text-xs text-stone-500"></span>
+          <button type="submit"
+                  class="bg-[#b59775] hover:bg-[#ac8a64] text-white px-4 py-2 rounded-lg text-sm font-medium">
+            Speichern
+          </button>
+        </div>
       </div>
     </form>
   </div>
@@ -113,6 +119,7 @@
   const statusEl = modal.querySelector('[data-modal-status]');
   const form = modal.querySelector('[data-modal-form]');
   const closeBtn = modal.querySelector('[data-modal-close]');
+  const deleteBtn = modal.querySelector('[data-modal-delete]');
   let activeImageId = null;
 
   function showModal() {
@@ -139,6 +146,31 @@
   closeBtn.addEventListener('click', hideModal);
   modal.addEventListener('click', (e) => {
     if (e.target === modal) hideModal();
+  });
+
+  deleteBtn.addEventListener('click', async () => {
+    if (!activeImageId) return;
+    if (!window.confirm('Dieses Bild endgültig löschen?')) return;
+    statusEl.textContent = 'Lösche …';
+    try {
+      const resp = await fetch(`/images/${activeImageId}`, {
+        method: 'DELETE',
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        statusEl.textContent = body.error || `Fehler ${resp.status}`;
+        return;
+      }
+      const tile = document.querySelector(`[data-image-trigger][data-image-id="${activeImageId}"]`);
+      const caption = document.querySelector(`[data-image-caption-for="${activeImageId}"]`);
+      if (tile && tile.parentElement) tile.parentElement.remove();
+      else if (tile) tile.remove();
+      if (caption) caption.remove();
+      hideModal();
+    } catch (err) {
+      statusEl.textContent = 'Netzwerkfehler.';
+    }
   });
 
   form.addEventListener('submit', async (event) => {
