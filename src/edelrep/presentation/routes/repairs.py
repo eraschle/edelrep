@@ -2,8 +2,11 @@ from datetime import date as _date
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from ulid import ULID
 
-from edelrep.domain.exceptions import VehicleNotFound
+from edelrep.domain.entities import Repair, Vehicle
+from edelrep.domain.exceptions import RepairNotFound, VehicleNotFound
+from edelrep.presentation.container import Container
 from edelrep.presentation.dependencies import ContainerDep
 from edelrep.presentation.vehicle_lookup import resolve_vehicle, vehicle_url_key
 
@@ -79,3 +82,56 @@ def create_repair(
         url=f"/vehicles/{canonical_key}",
         status_code=303,
     )
+
+
+def _resolve_repair(
+    container: Container, vehicle_key: str, repair_id: str
+) -> tuple[Vehicle, Repair]:
+    """Return (vehicle, repair) or raise HTTPException(404)."""
+    try:
+        vehicle = resolve_vehicle(container.vehicle_repo, vehicle_key)
+    except VehicleNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        rid = ULID.from_str(repair_id)
+        repair = container.repair_repo.get(rid)
+    except (ValueError, RepairNotFound) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if repair.vehicle_id != vehicle.id:
+        raise HTTPException(status_code=404, detail="repair does not belong to vehicle")
+    return vehicle, repair
+
+
+@router.get(
+    "/vehicles/{vehicle_key}/repairs/{repair_id}/edit",
+    response_class=HTMLResponse,
+)
+def edit_repair_form(
+    request: Request,
+    container: ContainerDep,
+    vehicle_key: str,
+    repair_id: str,
+) -> HTMLResponse:
+    vehicle, repair = _resolve_repair(container, vehicle_key, repair_id)
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "edit_repair.html",
+        {
+            "vehicle_key": vehicle_url_key(vehicle),
+            "repair": repair,
+            "form": {"description": repair.description or ""},
+        },
+    )
+
+
+@router.post("/vehicles/{vehicle_key}/repairs/{repair_id}/edit", response_model=None)
+def edit_repair(
+    container: ContainerDep,
+    vehicle_key: str,
+    repair_id: str,
+    description: str = Form(""),
+) -> RedirectResponse:
+    vehicle, repair = _resolve_repair(container, vehicle_key, repair_id)
+    container.update_repair.execute(repair_id=repair.id, description=description.strip() or None)
+    return RedirectResponse(url=f"/vehicles/{vehicle_url_key(vehicle)}", status_code=303)

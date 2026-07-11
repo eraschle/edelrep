@@ -1,6 +1,9 @@
+from datetime import date
+
 from fastapi.testclient import TestClient
 from ulid import ULID
 
+from edelrep.domain.entities import Vehicle
 from edelrep.presentation.container import Container
 
 
@@ -109,3 +112,74 @@ def test_create_repair_with_json_accept_missing_vehicle_returns_404_json(
     )
     assert r.status_code == 404
     assert "error" in r.json()
+
+
+def _seed_vehicle_and_repair(container: Container) -> tuple[Vehicle, str]:
+    vehicle = container.create_vehicle.execute(
+        registration_number="12345", vin=None, description=None
+    )
+    repair = container.create_repair.execute(
+        vehicle_id=vehicle.id, repair_date=date(2026, 5, 3), description="alt"
+    )
+    return vehicle, str(repair.id)
+
+
+def test_edit_repair_form_shows_current_description(
+    client: TestClient, container: Container
+) -> None:
+    _, repair_id = _seed_vehicle_and_repair(container)
+    r = client.get(f"/vehicles/12345/repairs/{repair_id}/edit")
+    assert r.status_code == 200
+    assert "alt" in r.text
+
+
+def test_edit_repair_updates_and_redirects(client: TestClient, container: Container) -> None:
+    vehicle, repair_id = _seed_vehicle_and_repair(container)
+    r = client.post(
+        f"/vehicles/12345/repairs/{repair_id}/edit",
+        data={"description": "neu"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/vehicles/12345"
+    repairs = list(container.list_repairs.execute(vehicle.id))
+    assert repairs[0].description == "neu"
+
+
+def test_edit_repair_missing_vehicle_returns_404(client: TestClient) -> None:
+    r = client.get("/vehicles/99999/repairs/01J9TGZP6X2K0V3W7Y8Z4QABCD/edit")
+    assert r.status_code == 404
+
+
+def test_edit_repair_unknown_repair_returns_404(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    r = client.get("/vehicles/12345/repairs/01J9TGZP6X2K0V3W7Y8Z4QABCD/edit")
+    assert r.status_code == 404
+
+
+def test_edit_repair_invalid_repair_id_returns_404(
+    client: TestClient, container: Container
+) -> None:
+    container.create_vehicle.execute(registration_number="12345", vin=None, description=None)
+    r = client.get("/vehicles/12345/repairs/not-a-ulid/edit")
+    assert r.status_code == 404
+
+
+def test_edit_repair_wrong_vehicle_returns_404(
+    client: TestClient, container: Container
+) -> None:
+    _, repair_id = _seed_vehicle_and_repair(container)
+    container.create_vehicle.execute(registration_number="67890", vin=None, description=None)
+    # Repair belongs to vehicle 12345, requested under 67890.
+    r = client.get(f"/vehicles/67890/repairs/{repair_id}/edit")
+    assert r.status_code == 404
+
+
+def test_vehicle_detail_shows_edit_link_per_repair(
+    client: TestClient, container: Container
+) -> None:
+    _, repair_id = _seed_vehicle_and_repair(container)
+    r = client.get("/vehicles/12345")
+    assert f"/vehicles/12345/repairs/{repair_id}/edit" in r.text
