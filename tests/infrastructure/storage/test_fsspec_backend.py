@@ -20,6 +20,11 @@ def test_write_then_read_round_trip(backend: FsspecBackend) -> None:
     assert backend.read_bytes("a/b/c.txt") == b"hello"
 
 
+def test_size_returns_byte_length(backend: FsspecBackend) -> None:
+    backend.write_bytes("k", b"hello world")
+    assert backend.size("k") == 11
+
+
 def test_write_creates_parents_implicitly(backend: FsspecBackend) -> None:
     backend.write_bytes("nested/deep/file.bin", b"x")
     assert backend.exists("nested/deep/file.bin")

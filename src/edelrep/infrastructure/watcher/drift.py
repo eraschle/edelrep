@@ -18,6 +18,19 @@ class DriftDetector:
         self._lock = lock
         self._storage_root = storage_root
 
+    def has_ever_reindexed(self) -> bool:
+        """True once a full rebuild has stamped ``meta.last_full_reindex``.
+
+        False for a brand-new, deleted, or schema-upgraded index — i.e. one
+        that has never been built from the filesystem. Only the presence of
+        the marker matters here, so the value is not parsed.
+        """
+        with self._lock:
+            cur = self._conn.execute(
+                "SELECT 1 FROM meta WHERE key = 'last_full_reindex'"
+            )
+            return cur.fetchone() is not None
+
     def is_drifted(self) -> bool:
         last = self._read_last_reindex()
         if last is None:

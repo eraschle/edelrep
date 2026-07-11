@@ -61,8 +61,19 @@ class LiveIndex:
     def start(self) -> None:
         if self._observer is not None:
             return
-        self._drift_detected = self._drift_detector.is_drifted()
         self._storage_root.mkdir(parents=True, exist_ok=True)
+        self._drift_detected = self._drift_detector.is_drifted()
+        if not self._drift_detector.has_ever_reindexed():
+            # Fresh/empty index (new install, deleted db, or schema upgrade):
+            # the watcher only reacts to *new* events, so backfill pre-existing
+            # filesystem data once before we start watching.
+            _logger.info(
+                "index has never been built; rebuilding from %s before watching",
+                self._storage_root,
+            )
+            self._projector.full_rebuild(
+                self._vehicle_repo, self._repair_repo, self._image_repo
+            )
         observer = Observer()
         observer.schedule(self._handler, str(self._storage_root), recursive=True)
         observer.start()

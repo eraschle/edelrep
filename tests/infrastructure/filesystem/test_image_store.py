@@ -65,6 +65,39 @@ def test_save_writes_image_bytes_and_thumbnail(
     assert len(thumb_keys) == 1
 
 
+def test_list_for_repair_stats_size_without_reading_image_bytes(
+    backend: StorageBackend,
+    sample_vehicle: Vehicle,
+    sample_repair: Repair,
+    sample_image_bytes: bytes,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Listing (used by index full_rebuild) must stat image sizes, not read files.
+
+    Reading every image just to compute ``size_bytes`` made a full rebuild read
+    the entire photo archive from disk.
+    """
+    _seed(backend, sample_vehicle, sample_repair)
+    repo = FilesystemImageRepository(backend)
+    repo.save(make_image(sample_repair.id), raw_bytes=sample_image_bytes)
+
+    read_keys: list[str] = []
+    original_read = backend.read_bytes
+
+    def _tracking_read(key: str) -> bytes:
+        read_keys.append(key)
+        return original_read(key)
+
+    monkeypatch.setattr(backend, "read_bytes", _tracking_read)
+
+    images = list(repo.list_for_repair(sample_repair.id))
+
+    assert len(images) == 1
+    assert images[0].size_bytes == len(sample_image_bytes)
+    image_reads = [k for k in read_keys if k.endswith(".jpg")]
+    assert image_reads == [], f"image bytes were read during listing: {image_reads}"
+
+
 def test_save_raises_when_repair_missing(
     backend: StorageBackend,
     sample_vehicle: Vehicle,
