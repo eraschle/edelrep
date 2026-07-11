@@ -17,6 +17,16 @@ def test_write_then_read_round_trip(backend: LocalFilesystemBackend) -> None:
     assert backend.read_bytes("a/b/c.txt") == b"hello"
 
 
+def test_size_returns_byte_length(backend: LocalFilesystemBackend) -> None:
+    backend.write_bytes("k", b"hello world")
+    assert backend.size("k") == 11
+
+
+def test_size_of_missing_key_raises(backend: LocalFilesystemBackend) -> None:
+    with pytest.raises(FileNotFoundError):
+        backend.size("does/not/exist")
+
+
 def test_write_creates_parent_dirs(backend: LocalFilesystemBackend, tmp_path: Path) -> None:
     backend.write_bytes("nested/deep/file.bin", b"x")
     assert (tmp_path / "store" / "nested" / "deep" / "file.bin").read_bytes() == b"x"

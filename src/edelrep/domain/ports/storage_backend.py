@@ -14,6 +14,10 @@ class StorageBackend(Protocol):
         """Return the full contents of ``key``. Raises ``FileNotFoundError``."""
         ...
 
+    def size(self, key: str) -> int:
+        """Return the byte size of ``key`` without reading it. Raises ``FileNotFoundError``."""
+        ...
+
     def write_bytes(self, key: str, data: bytes) -> None:
         """Atomically write ``data`` to ``key``, creating parent dirs as needed."""
         ...
