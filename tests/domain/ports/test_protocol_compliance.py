@@ -117,6 +117,9 @@ class _FakeStorage:
     def read_bytes(self, key: str) -> bytes:
         return self._files[key]
 
+    def size(self, key: str) -> int:
+        return len(self._files[key])
+
     def write_bytes(self, key: str, data: bytes) -> None:
         self._files[key] = data
 

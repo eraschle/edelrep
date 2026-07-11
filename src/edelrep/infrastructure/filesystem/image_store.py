@@ -143,7 +143,7 @@ class FilesystemImageRepository:
             raise ValueError(f"unexpected image filename: {filename!r}")
         image_id = ULID.from_str(match.group(2))
         thumb_candidate = key.rsplit("/", 1)[0] + "/_thumbs/" + filename
-        raw = self._backend.read_bytes(key)
+        size_bytes = self._backend.size(key)
         thumb_key_value = thumb_candidate if self._backend.exists(thumb_candidate) else None
         mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
 
@@ -163,7 +163,7 @@ class FilesystemImageRepository:
             thumbnail_key=thumb_key_value,
             filename=filename,
             mime_type=mime,
-            size_bytes=len(raw),
+            size_bytes=size_bytes,
             source=ImageSource.MANUAL,
             uploaded_at=datetime.now(UTC),
             captured_at=None,

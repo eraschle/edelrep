@@ -25,6 +25,12 @@ class FsspecBackend:
     def read_bytes(self, key: str) -> bytes:
         return self._fs.cat_file(self._full(key))  # type: ignore[no-any-return]
 
+    def size(self, key: str) -> int:
+        size = self._fs.size(self._full(key))
+        if size is None:  # pragma: no cover - fsspec returns a size for existing files
+            raise FileNotFoundError(key)
+        return int(size)
+
     def write_bytes(self, key: str, data: bytes) -> None:
         self._fs.pipe_file(self._full(key), data)
 

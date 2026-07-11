@@ -33,6 +33,9 @@ class LocalFilesystemBackend:
     def read_bytes(self, key: str) -> bytes:
         return self._path(key).read_bytes()
 
+    def size(self, key: str) -> int:
+        return self._path(key).stat().st_size
+
     def write_bytes(self, key: str, data: bytes) -> None:
         write_bytes_atomic(self._path(key), data)
 
