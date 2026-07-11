@@ -31,10 +31,17 @@
           </span>
         </span>
       </a>
-      <a href="/vehicles/new"
-         class="inline-flex items-center gap-2 text-sm bg-[#b59775] hover:bg-[#ac8a64] text-white px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
-        {{ icon("plus", "w-4 h-4") }} Fahrzeug
-      </a>
+      <div class="flex items-center gap-3">
+        <a href="/admin/updates"
+           class="text-sm text-stone-500 hover:text-stone-900 font-medium transition-colors hidden sm:inline-flex"
+           title="Auf Updates prüfen">
+          Updates
+        </a>
+        <a href="/vehicles/new"
+           class="inline-flex items-center gap-2 text-sm bg-[#b59775] hover:bg-[#ac8a64] text-white px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
+          {{ icon("plus", "w-4 h-4") }} Fahrzeug
+        </a>
+      </div>
     </div>
   </nav>
   <main class="max-w-4xl mx-auto px-6 py-8">

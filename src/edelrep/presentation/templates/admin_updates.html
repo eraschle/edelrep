@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Updates – edelrep{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6 tracking-tight">Updates</h1>
+
+<div class="bg-white border border-stone-200 rounded-xl shadow-sm p-6 space-y-5">
+  <div class="text-sm text-stone-700 space-y-1">
+    <p>
+      <span class="font-medium">Installierte Version:</span>
+      <span id="current-version" class="font-mono">{{ status.current_short }}</span>
+    </p>
+    <p>
+      <span class="font-medium">Neueste Version:</span>
+      <span id="latest-version" class="font-mono">{{ status.latest_short }}</span>
+    </p>
+  </div>
+
+  <div id="status-banner"
+       class="rounded-lg border px-4 py-3 text-sm
+              {% if status.update_available %}bg-amber-50 border-amber-200 text-amber-900
+              {% elif status.current == 'unknown' or status.latest == 'unknown' %}bg-stone-50 border-stone-200 text-stone-700
+              {% else %}bg-green-50 border-green-200 text-green-900{% endif %}">
+    {% if status.update_available %}
+      Eine neue Version ist verfügbar.
+    {% elif status.current == 'unknown' or status.latest == 'unknown' %}
+      Konnte Versionen nicht abrufen — Internet-Verbindung prüfen.
+    {% else %}
+      Du verwendest die neueste Version.
+    {% endif %}
+  </div>
+
+  <div class="flex items-center justify-between gap-3">
+    <button type="button" id="check-btn"
+            class="bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors">
+      Erneut prüfen
+    </button>
+    <button type="button" id="apply-btn"
+            class="bg-[#b59775] hover:bg-[#ac8a64] disabled:bg-stone-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors"
+            {% if not status.update_available %}disabled{% endif %}>
+      Jetzt aktualisieren
+    </button>
+  </div>
+
+  <p id="progress-line" class="text-sm text-stone-500" hidden></p>
+</div>
+
+<script>
+(function () {
+  const checkBtn = document.getElementById('check-btn');
+  const applyBtn = document.getElementById('apply-btn');
+  const banner = document.getElementById('status-banner');
+  const currentEl = document.getElementById('current-version');
+  const latestEl = document.getElementById('latest-version');
+  const progress = document.getElementById('progress-line');
+
+  function renderStatus(data) {
+    currentEl.textContent = data.current_short;
+    latestEl.textContent = data.latest_short;
+    banner.classList.remove(
+      'bg-amber-50', 'border-amber-200', 'text-amber-900',
+      'bg-green-50', 'border-green-200', 'text-green-900',
+      'bg-stone-50', 'border-stone-200', 'text-stone-700'
+    );
+    if (data.update_available) {
+      banner.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-900');
+      banner.textContent = 'Eine neue Version ist verfügbar.';
+      applyBtn.disabled = false;
+    } else if (data.current === 'unknown' || data.latest === 'unknown') {
+      banner.classList.add('bg-stone-50', 'border-stone-200', 'text-stone-700');
+      banner.textContent = 'Konnte Versionen nicht abrufen — Internet-Verbindung prüfen.';
+      applyBtn.disabled = true;
+    } else {
+      banner.classList.add('bg-green-50', 'border-green-200', 'text-green-900');
+      banner.textContent = 'Du verwendest die neueste Version.';
+      applyBtn.disabled = true;
+    }
+  }
+
+  checkBtn.addEventListener('click', async () => {
+    checkBtn.disabled = true;
+    progress.hidden = false;
+    progress.textContent = 'Prüfe …';
+    try {
+      const resp = await fetch('/admin/updates/status', { headers: { 'Accept': 'application/json' } });
+      if (!resp.ok) throw new Error('http ' + resp.status);
+      renderStatus(await resp.json());
+      progress.hidden = true;
+    } catch (err) {
+      progress.textContent = 'Fehler beim Prüfen: ' + err.message;
+    } finally {
+      checkBtn.disabled = false;
+    }
+  });
+
+  applyBtn.addEventListener('click', async () => {
+    const initialVersion = currentEl.textContent;
+    if (!window.confirm('Jetzt aktualisieren? Die App startet kurz neu.')) return;
+    applyBtn.disabled = true;
+    checkBtn.disabled = true;
+    progress.hidden = false;
+    progress.textContent = 'Starte Update …';
+    try {
+      await fetch('/admin/updates/apply', { method: 'POST', headers: { 'Accept': 'application/json' } });
+    } catch (err) {
+      // Connection drop is expected as the server exits.
+    }
+    progress.textContent = 'Update läuft, warte auf Neustart …';
+    // Poll until the server is back and the version differs.
+    const start = Date.now();
+    while (Date.now() - start < 120000) {  // up to 2 minutes
+      await new Promise(r => setTimeout(r, 1500));
+      try {
+        const resp = await fetch('/admin/updates/status', { cache: 'no-store' });
+        if (!resp.ok) continue;
+        const data = await resp.json();
+        if (data.current_short !== initialVersion && data.current !== 'unknown') {
+          progress.textContent = 'Aktualisiert auf ' + data.current_short + ' — lade Seite neu …';
+          setTimeout(() => window.location.reload(), 1200);
+          return;
+        }
+      } catch (err) {
+        // Server not back yet; keep polling.
+      }
+    }
+    progress.textContent = 'Server kommt nicht zurück — bitte Erich kontaktieren.';
+    checkBtn.disabled = false;
+  });
+})();
+</script>
+{% endblock %}

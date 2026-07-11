@@ -2,6 +2,11 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+
+def _project_root() -> Path:
+    """Return the git checkout root (``edelrep/`` four levels up from this file)."""
+    return Path(__file__).resolve().parents[3]
+
 from edelrep.application.create_repair import CreateRepairUseCase
 from edelrep.application.create_vehicle import CreateVehicleUseCase
 from edelrep.application.delete_image import DeleteImageUseCase
@@ -43,6 +48,7 @@ from edelrep.infrastructure.index import (
 from edelrep.infrastructure.scheduler import DailyCleanupScheduler
 from edelrep.infrastructure.search.rapidfuzz_matcher import RapidFuzzMatcher
 from edelrep.infrastructure.storage import LocalFilesystemBackend
+from edelrep.infrastructure.updates import UpdateChecker
 from edelrep.infrastructure.watcher.live_index import LiveIndex
 
 
@@ -67,6 +73,7 @@ class Container:
     search_vehicle: SearchVehicleUseCase
     update_image_comment: UpdateImageCommentUseCase
     delete_image: DeleteImageUseCase
+    update_checker: UpdateChecker
     inbox_reader: InboxReader
     live_index: LiveIndex | None = None
     email_poller: EmailPoller | None = None
@@ -119,6 +126,7 @@ def build_container(
         search_vehicle=SearchVehicleUseCase(search_index, fuzzy=fuzzy_matcher),
         update_image_comment=UpdateImageCommentUseCase(image_repo),
         delete_image=DeleteImageUseCase(image_repo, search_index),
+        update_checker=UpdateChecker(_project_root()),
         inbox_reader=inbox_reader,
     )
 
