@@ -37,6 +37,17 @@ docker compose logs -f
 
 Volumes: `./data` enthält den `storage_root` und den SQLite-Index. Backup: nur `data/` mitsichern; `data/index.db` ist wegwerfbar (`edelrep reindex` regeneriert ihn).
 
+## Option 3 — Windows (Werkstatt-Autostart)
+
+[`start_edelrep.bat`](start_edelrep.bat) startet edelrep im LAN-Modus; Logs landen in `edelrep.log`. Batch beim Anmelden ausführen lassen (z.B. Verknüpfung im Autostart-Ordner `shell:startup`).
+
+Zwei Windows-spezifische Stolpersteine, die das Batch bereits berücksichtigt:
+
+- **`.venv`-Erstellung schlägt fehl mit „linking across drives".** `uv` verlinkt Pakete per Hardlink aus seinem Cache; Hardlinks funktionieren unter Windows nicht laufwerksübergreifend. Liegt der Cache auf `C:` und das Projekt auf `D:`, `set UV_LINK_MODE=copy` setzen (macht das Batch). Alternativ den Cache aufs Projekt-Laufwerk legen: `set UV_CACHE_DIR=D:\uv-cache`.
+- **Start schlägt fehl mit „Anwendungssteuerungsrichtlinie hat diese Datei blockiert" (os error 4551).** Eine Richtlinie (Smart App Control / WDAC / AppLocker) blockiert den unsignierten `edelrep.exe`-Shim. Deshalb startet das Batch über den Interpreter: `uv run python -m edelrep.cli.main serve …` statt `uv run edelrep serve …`. Ein Neuerstellen der `.venv` hilft hier nicht — der Shim wird identisch neu erzeugt und nach derselben Regel wieder blockiert.
+
+Der Index unter `--index-path` ist wegwerfbar: fehlt er (frische Installation, gelöscht, Upgrade), baut der Server ihn beim Start automatisch aus dem `--storage-root` neu auf.
+
 ## E-Mail-Konfiguration (optional)
 
 Wenn der IMAP-Poller laufen soll, eine TOML-Datei z.B. unter `/etc/edelrep/email.toml`:
