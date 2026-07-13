@@ -14,6 +14,7 @@ from edelrep.application.ingest_email import IngestEmailUseCase
 from edelrep.application.list_repairs import ListRepairsUseCase
 from edelrep.application.search_vehicle import SearchVehicleUseCase
 from edelrep.application.update_image_comment import UpdateImageCommentUseCase
+from edelrep.application.update_repair import UpdateRepairUseCase
 from edelrep.application.update_vehicle import UpdateVehicleUseCase
 from edelrep.application.upload_image import UploadImageUseCase
 from edelrep.domain.ports import (
@@ -61,6 +62,7 @@ class Container:
     soft_delete_vehicle: SoftDeleteVehicleUseCase
     cleanup_deleted_vehicles: CleanupDeletedVehiclesUseCase
     create_repair: CreateRepairUseCase
+    update_repair: UpdateRepairUseCase
     upload_image: UploadImageUseCase
     list_repairs: ListRepairsUseCase
     get_image: GetImageUseCase
@@ -113,6 +115,7 @@ def build_container(
         soft_delete_vehicle=SoftDeleteVehicleUseCase(vehicle_repo, search_index),
         cleanup_deleted_vehicles=CleanupDeletedVehiclesUseCase(vehicle_repo, search_index),
         create_repair=CreateRepairUseCase(vehicle_repo, repair_repo),
+        update_repair=UpdateRepairUseCase(repair_repo),
         upload_image=UploadImageUseCase(repair_repo, image_repo, processor, backend),
         list_repairs=ListRepairsUseCase(vehicle_repo, repair_repo),
         get_image=GetImageUseCase(image_repo, backend),

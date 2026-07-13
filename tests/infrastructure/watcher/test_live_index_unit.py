@@ -6,6 +6,7 @@ import pytest
 from ulid import ULID
 
 from edelrep.domain.entities import Image, ImageSource, Repair, Vehicle
+from edelrep.infrastructure.filesystem.sidecar import write_sidecar
 from edelrep.infrastructure.watcher.live_index import LiveIndex
 from tests.application.fakes import (
     InMemoryImageRepo,
@@ -19,6 +20,8 @@ VEHICLE_ID = ULID.from_str("01J9TGZP6X2K0V3W7Y8Z4QFFFF")
 VEHICLE_ID_STR = str(VEHICLE_ID)
 OTHER_VEHICLE_ID = ULID.from_str("01HXKBP3MGT7VWE5R4QABCDEF1")
 OTHER_VEHICLE_ID_STR = str(OTHER_VEHICLE_ID)
+REPAIR_ID = ULID.from_str("01J9TGZP6X2K0V3W7Y8Z4QREPA")
+REPAIR_ID_STR = str(REPAIR_ID)
 
 
 def _mock_projector() -> MagicMock:
@@ -125,6 +128,7 @@ def test_handle_image_skips_when_vehicle_unknown(live: LiveIndex) -> None:
 
 
 def test_handle_image_upserts_all_images_for_repair(live: LiveIndex, tmp_path: Path) -> None:
+    storage_root = tmp_path / "store"
     vehicle = Vehicle(
         id=VEHICLE_ID,
         registration_number="12345",
@@ -141,6 +145,18 @@ def test_handle_image_upserts_all_images_for_repair(live: LiveIndex, tmp_path: P
         created_at=datetime(2026, 5, 3, tzinfo=UTC),
     )
     live._repair_repo.save(repair)  # type: ignore[union-attr]
+    # Write the sidecar file so the repair can be resolved by ID
+    sidecar = storage_root / VEHICLE_ID_STR / "2026-04-15__brakes" / "_repair.json"
+    sidecar.parent.mkdir(parents=True)
+    write_sidecar(
+        sidecar,
+        {
+            "id": str(repair.id),
+            "date": "2026-04-15",
+            "description": "brakes",
+            "created_at": "2026-05-03T00:00:00+00:00",
+        },
+    )
     image = Image(
         id=ULID(),
         repair_id=repair.id,
@@ -194,3 +210,61 @@ def test_start_when_already_running_is_noop(tmp_path: Path) -> None:
         # Observer should be instantiated exactly once.
         assert mock_observer_cls.call_count == 1
     live.stop()
+
+
+def test_handle_image_matches_repair_by_sidecar_after_description_edit(
+    live: LiveIndex, tmp_path: Path
+) -> None:
+    """After a description edit the folder slug diverges; images must still match
+    their repair via the repair-ULID in the folder's _repair.json sidecar."""
+    storage_root = tmp_path / "store"
+    # Folder name reflects the ORIGINAL slug; the repair's description was since edited.
+    dir_name = "2026-04-15__old-slug"
+    sidecar = storage_root / VEHICLE_ID_STR / dir_name / "_repair.json"
+    sidecar.parent.mkdir(parents=True)
+    write_sidecar(
+        sidecar,
+        {
+            "id": REPAIR_ID_STR,
+            "date": "2026-04-15",
+            "description": "neue beschreibung",
+            "created_at": "2026-05-03T00:00:00+00:00",
+        },
+    )
+    live._vehicle_repo.save(  # type: ignore[union-attr]
+        Vehicle(
+            id=VEHICLE_ID,
+            registration_number="12345",
+            vin="W",
+            description="x",
+            created_at=datetime(2026, 5, 3, tzinfo=UTC),
+        )
+    )
+    live._repair_repo.save(  # type: ignore[union-attr]
+        Repair(
+            id=REPAIR_ID,
+            vehicle_id=VEHICLE_ID,
+            date=date(2026, 4, 15),
+            description="neue beschreibung",
+            created_at=datetime(2026, 5, 3, tzinfo=UTC),
+        )
+    )
+    image = Image(
+        id=ULID(),
+        repair_id=REPAIR_ID,
+        storage_key="placeholder",
+        thumbnail_key=None,
+        filename="0001.jpg",
+        mime_type="image/jpeg",
+        size_bytes=4,
+        source=ImageSource.MANUAL,
+        uploaded_at=datetime(2026, 5, 3, tzinfo=UTC),
+        captured_at=None,
+    )
+    live._image_repo.save(image, raw_bytes=b"\xff\xd8\xff\xd9")  # type: ignore[union-attr]
+
+    live._apply_batch(
+        {f"{VEHICLE_ID_STR}/{dir_name}/0001_01J9TGZP6X2K0V3W7Y8Z4QABCD.jpg"}
+    )
+
+    _proj(live).upsert_image.assert_called()

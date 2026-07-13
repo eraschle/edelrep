@@ -68,10 +68,16 @@
     {% endfor %}
     </div>
     {% endif %}
-    <a href="/vehicles/{{ vehicle_key }}/repairs/{{ r.id }}/upload"
-       class="inline-flex items-center gap-1.5 text-sm text-[#ac8a64] hover:text-[#8a6f4f] font-medium mt-3 transition-colors">
-      {{ icon("image-plus", "w-4 h-4") }} Bilder hochladen
-    </a>
+    <div class="mt-3 flex items-center gap-4">
+      <a href="/vehicles/{{ vehicle_key }}/repairs/{{ r.id }}/edit"
+         class="text-sm text-[#ac8a64] hover:text-[#8a6f4f] font-medium transition-colors">
+        Bearbeiten
+      </a>
+      <a href="/vehicles/{{ vehicle_key }}/repairs/{{ r.id }}/upload"
+         class="inline-flex items-center gap-1.5 text-sm text-[#ac8a64] hover:text-[#8a6f4f] font-medium transition-colors">
+        {{ icon("image-plus", "w-4 h-4") }} Bilder hochladen
+      </a>
+    </div>
   </li>
 {% endfor %}
 </ul>

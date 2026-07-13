@@ -2,17 +2,16 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ulid import ULID
 from watchdog.observers import Observer
 
-from ulid import ULID
-
-from edelrep.domain.exceptions import RepairNotFound, VehicleNotFound
+from edelrep.domain.exceptions import RepairNotFound, SidecarSchemaError, VehicleNotFound
 from edelrep.domain.ports import (
     ImageRepository,
     RepairRepository,
     VehicleRepository,
 )
-from edelrep.infrastructure.filesystem.layout import repair_dir_name
+from edelrep.infrastructure.filesystem.sidecar import read_sidecar
 from edelrep.infrastructure.index.projector import SqliteIndexProjector
 from edelrep.infrastructure.watcher.debouncer import Debouncer
 from edelrep.infrastructure.watcher.drift import DriftDetector
@@ -137,8 +136,15 @@ class LiveIndex:
             vehicle = self._vehicle_repo.get(vid)
         except (ValueError, VehicleNotFound):
             return
+        sidecar_path = self._storage_root / vehicle_str / dir_name / "_repair.json"
+        if not sidecar_path.is_file():
+            return
+        try:
+            repair_id = ULID.from_str(str(read_sidecar(sidecar_path)["id"]))
+        except (ValueError, KeyError, OSError, SidecarSchemaError):
+            return
         for repair in self._repair_repo.list_for_vehicle(vehicle.id):
-            if repair_dir_name(repair.date, repair.description) != dir_name:
+            if repair.id != repair_id:
                 continue
             try:
                 images = list(self._image_repo.list_for_repair(repair.id))
