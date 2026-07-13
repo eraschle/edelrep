@@ -177,6 +177,24 @@ def test_edit_repair_wrong_vehicle_returns_404(
     assert r.status_code == 404
 
 
+def test_edit_repair_post_wrong_vehicle_returns_404(
+    client: TestClient, container: Container
+) -> None:
+    vehicle, repair_id = _seed_vehicle_and_repair(container)
+    container.create_vehicle.execute(registration_number="67890", vin=None, description=None)
+    # POST shares the same _resolve_repair guard as GET — the mutating path
+    # must also reject a repair that belongs to a different vehicle.
+    r = client.post(
+        f"/vehicles/67890/repairs/{repair_id}/edit",
+        data={"description": "hijack"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 404
+    # And the repair on its real vehicle is untouched.
+    repairs = list(container.list_repairs.execute(vehicle.id))
+    assert repairs[0].description == "alt"
+
+
 def test_vehicle_detail_shows_edit_link_per_repair(
     client: TestClient, container: Container
 ) -> None:

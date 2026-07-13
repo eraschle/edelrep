@@ -133,5 +133,6 @@ def edit_repair(
     description: str = Form(""),
 ) -> RedirectResponse:
     vehicle, repair = _resolve_repair(container, vehicle_key, repair_id)
-    container.update_repair.execute(repair_id=repair.id, description=description.strip() or None)
+    # The use case owns description normalization (strip, empty -> None).
+    container.update_repair.execute(repair_id=repair.id, description=description)
     return RedirectResponse(url=f"/vehicles/{vehicle_url_key(vehicle)}", status_code=303)

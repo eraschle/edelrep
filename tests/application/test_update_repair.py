@@ -42,6 +42,7 @@ def test_update_repair_blank_description_becomes_none() -> None:
     updated = UpdateRepairUseCase(repo).execute(repair_id=original.id, description="   ")
 
     assert updated.description is None
+    assert repo.get(original.id).description is None
 
 
 def test_update_repair_unknown_id_raises() -> None:
